@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-hex-simd = "0.8.0"
-rdma = "0.3.0"
+clap = { version = "4.5.4", features = ["derive"] }
+rdma-sys = "0.3.0"

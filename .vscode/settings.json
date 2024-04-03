@@ -1,0 +1,5 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "./rdma_ring_buffer_rust/Cargo.toml"
+    ]
+}
