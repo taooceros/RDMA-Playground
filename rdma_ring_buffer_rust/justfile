@@ -20,4 +20,5 @@ client: build
 	./target/debug/{{executable}} -s {{server_ip}} --port {{port}}
 
 update:
+	git add .
 	git commit -am "update"
