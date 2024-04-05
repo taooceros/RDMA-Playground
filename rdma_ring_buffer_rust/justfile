@@ -1,0 +1,21 @@
+server_ip := "192.168.2.1"
+port := "12873"
+
+executable := "rdma_ring_buffer_rust"
+
+alias s := server
+alias c := client
+
+
+git_update:
+	git pull
+
+build: git_update
+	cargo build
+
+server: build
+	./target/debug/{{executable}} --port {{port}}
+
+client: build
+	./target/debug/{{executable}} --ip {{server_ip}} --port {{port}}
+	
