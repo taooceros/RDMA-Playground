@@ -1,6 +1,6 @@
 use core::panic;
 use rand::random;
-use rdma_sys::*;
+use rdma_sys::{ibv_qp_state::IBV_QPS_INIT, *};
 use std::{
     error::Error,
     ffi::{CStr, CString},
@@ -83,6 +83,11 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
             }
 
             let mut ret = ibv_query_port(self.ctx, 1, self.port_attr.as_mut_ptr() as *mut _);
+
+            assert_eq!(
+                self.port_attr.assume_init().state,
+                ibv_port_state::IBV_PORT_ACTIVE
+            );
 
             if ret != 0 {
                 panic!("Failed to query port");
@@ -236,6 +241,39 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
         dest: DestQpInfo,
     ) -> Result<(), Box<dyn Error>> {
         unsafe {
+            let mut qp_attr = ibv_qp_attr {
+                qp_state: IBV_QPS_INIT,
+                pkey_index: 0,
+                port_num: port,
+                qp_access_flags: (ibv_access_flags::IBV_ACCESS_LOCAL_WRITE
+                    | ibv_access_flags::IBV_ACCESS_REMOTE_READ
+                    | ibv_access_flags::IBV_ACCESS_REMOTE_ATOMIC
+                    | ibv_access_flags::IBV_ACCESS_REMOTE_WRITE)
+                    .0,
+                ..zeroed()
+            };
+
+            let ret = ibv_modify_qp(
+                self.qp,
+                &mut qp_attr,
+                (ibv_qp_attr_mask::IBV_QP_STATE
+                    | ibv_qp_attr_mask::IBV_QP_PKEY_INDEX
+                    | ibv_qp_attr_mask::IBV_QP_PORT
+                    | ibv_qp_attr_mask::IBV_QP_ACCESS_FLAGS)
+                    .0 as i32,
+            );
+
+            if ret != 0 {
+                panic!(
+                    "Failed to modify QP from RESET to INIT {}",
+                    std::io::Error::last_os_error()
+                );
+                return Err(Box::new(RdmaError::ModifyQpError {
+                    from_state: "RESET",
+                    to_state: "INIT",
+                }));
+            }
+
             let mut attr = ibv_qp_attr {
                 qp_state: ibv_qp_state::IBV_QPS_RTR,
                 path_mtu: ibv_mtu::IBV_MTU_1024,
@@ -276,7 +314,10 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
             );
 
             if ret != 0 {
-                panic!("Failed to modify QP from INIT to RTR");
+                panic!(
+                    "Failed to modify QP from INIT to RTR {}",
+                    std::io::Error::last_os_error()
+                );
                 return Err(Box::new(RdmaError::ModifyQpError {
                     from_state: "INIT",
                     to_state: "RTR",
