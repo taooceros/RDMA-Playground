@@ -36,7 +36,7 @@ fn main() {
             println!("RDMA setup success");
         }
         Err(e) => {
-            println!("RDMA setup failed: {:?}", e);
+            println!("RDMA setup failed: {}", e);
         }
     }
 }
