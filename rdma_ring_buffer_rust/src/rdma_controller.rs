@@ -99,6 +99,8 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
 
             // create cq
 
+            println!("max_cqe: {}", self.dev_attr.assume_init().max_cqe);
+
             self.cq = ibv_create_cq(
                 self.ctx,
                 self.dev_attr.assume_init().max_cqe,
