@@ -3,6 +3,7 @@ use rand::random;
 use rdma_sys::*;
 use std::{
     error::Error,
+    ffi::{CStr, CString},
     fmt::Display,
     io::{Read, Write},
     mem::{size_of, transmute, zeroed, MaybeUninit},
@@ -54,6 +55,11 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
             }
 
             self.ctx = ibv_open_device(*devices);
+
+            println!(
+                "ibv_open_device: {:?}",
+                CStr::from_ptr(self.ctx.as_ref().unwrap().device.as_ref().unwrap().name.as_ptr())
+            );
 
             if self.ctx.is_null() {
                 panic!("Failed to open IB device");
@@ -128,13 +134,15 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
 
             println!("Creating queue pair");
 
+            println!("max_qp_wr: {}", self.dev_attr.assume_init().max_qp_wr);
+
             let mut qp_init_attr = ibv_qp_init_attr {
                 send_cq: self.cq,
                 recv_cq: self.cq,
                 srq: self.srq,
                 cap: ibv_qp_cap {
-                    max_send_wr: self.dev_attr.assume_init().max_qp_wr as u32,
-                    max_recv_wr: self.dev_attr.assume_init().max_qp_wr as u32,
+                    max_send_wr: 2,
+                    max_recv_wr: 2,
                     max_send_sge: 1,
                     max_recv_sge: 1,
                     max_inline_data: 0,
@@ -151,6 +159,8 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
                 println!("last OS error: {os_error:?}");
                 panic!("Failed to create queue pair");
             }
+
+            self.connect_dest(config).unwrap();
 
             Ok(0)
         }
