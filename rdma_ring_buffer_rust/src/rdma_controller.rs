@@ -198,10 +198,6 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
     }
 
     fn connect_qp_client(&mut self, server_addr: IpAddr, port: u16) -> Result<(), Box<dyn Error>> {
-        let socket_addr = SocketAddr::new(server_addr, port);
-
-        let mut stream = std::net::TcpStream::connect(socket_addr)?;
-
         unsafe {
             let dest_info = DestQpInfo {
                 lid: self.port_attr.assume_init().lid,
@@ -210,12 +206,16 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
                 gid: zeroed(),
             };
 
+            println!("{:?}", dest_info);
+
+            let socket_addr = SocketAddr::new(server_addr, port);
+
+            let mut stream = std::net::TcpStream::connect(socket_addr)?;
+
             let buffer = transmute::<&DestQpInfo, &[u8; size_of::<DestQpInfo>()]>(&dest_info);
 
             stream.write_all(buffer)?;
         }
-
-        sleep(Duration::from_secs(10));
 
         Ok(())
     }
@@ -276,9 +276,10 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
             );
 
             if ret != 0 {
+                panic!("Failed to modify QP from INIT to RTR");
                 return Err(Box::new(RdmaError::ModifyQpError {
-                    from_state: "IBV_QPS_INIT",
-                    to_state: "IBV_QPS_RTR",
+                    from_state: "INIT",
+                    to_state: "RTR",
                 }));
             }
 
@@ -302,6 +303,7 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
             );
 
             if ret != 0 {
+                panic!("Failed to modify QP from RTR to RTS");
                 return Err(Box::new(RdmaError::ModifyQpError {
                     from_state: "RTR",
                     to_state: "RTS",
