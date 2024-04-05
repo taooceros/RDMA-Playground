@@ -207,7 +207,7 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
             let dest_info = DestQpInfo {
                 lid: self.port_attr.assume_init().lid,
                 qpn: (*self.qp).qp_num,
-                psn: random::<u32>() & 0xffffff,
+                psn: 0,
                 gid: zeroed(),
             };
 
