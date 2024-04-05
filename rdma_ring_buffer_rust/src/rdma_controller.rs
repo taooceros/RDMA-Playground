@@ -203,6 +203,8 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
 
     fn connect_qp_client(&mut self, server_addr: IpAddr, port: u16) -> Result<(), Box<dyn Error>> {
         unsafe {
+            println!("{} {}", self.port_attr.assume_init().max_mtu, self.port_attr.assume_init().lid);
+
             let dest_info = DestQpInfo {
                 lid: self.port_attr.assume_init().lid,
                 qpn: (*self.qp).qp_num,
