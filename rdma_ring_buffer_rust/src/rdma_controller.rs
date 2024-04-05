@@ -157,15 +157,14 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
                 recv_cq: self.cq,
                 srq: self.srq,
                 cap: ibv_qp_cap {
-                    max_send_wr: 2,
-                    max_recv_wr: 2,
+                    max_send_wr: 8192,
+                    max_recv_wr: 8192,
                     max_send_sge: 1,
                     max_recv_sge: 1,
-                    max_inline_data: 0,
+                    ..zeroed()
                 },
                 qp_type: ibv_qp_type::IBV_QPT_RC,
-                qp_context: null_mut(),
-                sq_sig_all: 0,
+                ..zeroed()
             };
 
             self.qp = ibv_create_qp(self.pd, &mut qp_init_attr);
