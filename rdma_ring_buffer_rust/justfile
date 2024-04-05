@@ -17,5 +17,7 @@ server: build
 	./target/debug/{{executable}} --port {{port}}
 
 client: build
-	./target/debug/{{executable}} --ip {{server_ip}} --port {{port}}
-	
+	./target/debug/{{executable}} -s {{server_ip}} --port {{port}}
+
+update:
+	git commit -am "update"
