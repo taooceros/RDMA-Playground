@@ -1,3 +1,4 @@
+use core::panic;
 use rand::random;
 use rdma_sys::*;
 use std::{
@@ -55,19 +56,19 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
             self.ctx = ibv_open_device(*devices);
 
             if self.ctx.is_null() {
-                return Err(RdmaError::OpenIbDeviceError);
+                panic!("Failed to open IB device");
             }
 
             self.pd = ibv_alloc_pd(self.ctx);
 
             if self.pd.is_null() {
-                return Err(RdmaError::AllocPdError);
+                panic!("Failed to allocate protection domain");
             }
 
             let mut ret = ibv_query_port(self.ctx, 1, self.port_attr.as_mut_ptr() as *mut _);
 
             if ret != 0 {
-                return Err(RdmaError::QueryPortError(ret));
+                panic!("Failed to query port");
             }
 
             //
@@ -88,29 +89,23 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
             );
 
             if self.mr.is_null() {
-                return Err(RdmaError::RegMrError);
+                panic!("Failed to register memory region");
             }
 
             ret = ibv_query_device(self.ctx, self.dev_attr.as_mut_ptr());
 
             if ret != 0 {
-                return Err(RdmaError::QueryDeviceError(ret));
+                panic!("Failed to query device");
             }
 
             // create cq
 
-            println!("max_cqe: {}", self.dev_attr.assume_init().max_cqe);
-
-            self.cq = ibv_create_cq(
-                self.ctx,
-                self.dev_attr.assume_init().max_cqe,
-                null_mut(),
-                null_mut(),
-                0,
-            );
+            self.cq = ibv_create_cq(self.ctx, 1, null_mut(), null_mut(), 0);
 
             if self.cq.is_null() {
-                return Err(RdmaError::CreateCqError);
+                let os_error = std::io::Error::last_os_error();
+                println!("last OS error: {os_error:?}");
+                panic!("Failed to create completion queue");
             }
 
             // create srq
@@ -124,10 +119,14 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
             self.srq = ibv_create_srq(self.pd, ibv_srq_init_attr.as_mut_ptr());
 
             if self.srq.is_null() {
-                return Err(RdmaError::CreateCqError);
+                let os_error = std::io::Error::last_os_error();
+                println!("last OS error: {os_error:?}");
+                panic!("Failed to create shared receive queue");
             }
 
             // create qp
+
+            println!("Creating queue pair");
 
             let mut qp_init_attr = ibv_qp_init_attr {
                 send_cq: self.cq,
@@ -148,7 +147,9 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
             self.qp = ibv_create_qp(self.pd, &mut qp_init_attr);
 
             if self.qp.is_null() {
-                return Err(RdmaError::CreateCqError);
+                let os_error = std::io::Error::last_os_error();
+                println!("last OS error: {os_error:?}");
+                panic!("Failed to create queue pair");
             }
 
             Ok(0)
@@ -300,11 +301,13 @@ pub enum RdmaError {
     QueryPortError(i32),
     QueryDeviceError(i32),
     CreateCqError,
+    CreateSrqError,
     ModifyQpError {
         from_state: &'static str,
         to_state: &'static str,
     },
     RegMrError,
+    CreateQpError,
 }
 // const IBV_ACCESS_RELAXED_ORDERING: i32 = IBV_ACCESS_OPTIONAL_FIRST;
 
@@ -335,6 +338,8 @@ impl Display for RdmaError {
                 write!(f, "Failed to query device with return value {}", ret)
             }
             RdmaError::CreateCqError => write!(f, "Failed to create completion queue"),
+            RdmaError::CreateQpError => write!(f, "Failed to create queue pair"),
+            RdmaError::CreateSrqError => write!(f, "Failed to create shared receive queue"),
             RdmaError::ModifyQpError {
                 from_state,
                 to_state,
