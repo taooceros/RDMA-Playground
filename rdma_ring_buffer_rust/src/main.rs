@@ -31,5 +31,12 @@ fn main() {
         connection_type,
     };
 
-    ib_resource.setup_ib(config).unwrap();
+    match ib_resource.setup_ib(config) {
+        Ok(_) => {
+            println!("RDMA setup success");
+        }
+        Err(e) => {
+            println!("RDMA setup failed: {:?}", e);
+        }
+    }
 }
