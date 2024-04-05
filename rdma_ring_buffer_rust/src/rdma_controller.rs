@@ -276,9 +276,9 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
 
             let mut qp_attr = ibv_qp_attr {
                 qp_state: ibv_qp_state::IBV_QPS_RTR,
-                path_mtu: ibv_mtu::IBV_MTU_4096,
+                path_mtu: ibv_mtu::IBV_MTU_1024,
                 dest_qp_num: dest.qpn,
-                rq_psn: 0,
+                rq_psn: dest.psn,
                 max_dest_rd_atomic: 1,
                 min_rnr_timer: 12,
                 ah_attr: ibv_ah_attr {
