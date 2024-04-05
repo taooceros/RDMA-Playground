@@ -4,6 +4,7 @@ pub trait AtomicExtension {
     type T;
     fn load_acquire(&self) -> Self::T;
     fn store_release(&self, val: Self::T);
+    fn load_relaxed(&self) -> Self::T;
 }
 
 macro_rules! impl_atomic_extension {
@@ -15,6 +16,9 @@ macro_rules! impl_atomic_extension {
             }
             fn store_release(&self, val: $t) {
                 self.store(val, std::sync::atomic::Ordering::Release);
+            }
+            fn load_relaxed(&self) -> $t {
+                self.load(std::sync::atomic::Ordering::Relaxed)
             }
         }
     };
@@ -39,5 +43,8 @@ impl<T> AtomicExtension for AtomicPtr<T> {
     }
     fn store_release(&self, val: *mut T) {
         self.store(val, std::sync::atomic::Ordering::Release);
+    }
+    fn load_relaxed(&self) -> *mut T {
+        self.load(std::sync::atomic::Ordering::Relaxed)
     }
 }

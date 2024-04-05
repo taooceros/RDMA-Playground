@@ -5,4 +5,6 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.4", features = ["derive"] }
+derivative = "2.2.0"
+rand = "0.8.5"
 rdma-sys = "0.3.0"
