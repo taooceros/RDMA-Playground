@@ -197,7 +197,7 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
 
         println!("Received dest_info: {:?}", dest_info);
 
-        self.connect_qp_to_dest(1, 1, dest_info)?;
+        self.connect_qp_to_dest(0, 1, dest_info)?;
 
         Ok(())
     }
@@ -274,11 +274,11 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
                 }));
             }
 
-            let mut attr = ibv_qp_attr {
+            let mut qp_attr = ibv_qp_attr {
                 qp_state: ibv_qp_state::IBV_QPS_RTR,
-                path_mtu: ibv_mtu::IBV_MTU_1024,
+                path_mtu: ibv_mtu::IBV_MTU_4096,
                 dest_qp_num: dest.qpn,
-                rq_psn: dest.psn,
+                rq_psn: 0,
                 max_dest_rd_atomic: 1,
                 min_rnr_timer: 12,
                 ah_attr: ibv_ah_attr {
@@ -292,17 +292,17 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
                 ..zeroed()
             };
 
-            if dest.gid.global.interface_id != 0 {
-                attr.ah_attr.is_global = 1;
-                attr.ah_attr.grh.dgid = dest.gid;
-                attr.ah_attr.grh.sgid_index = 0;
-                attr.ah_attr.grh.hop_limit = 1;
-                attr.ah_attr.grh.traffic_class = 0;
-            }
+            // if dest.gid.global.interface_id != 0 {
+            //     qp_attr.ah_attr.is_global = 1;
+            //     qp_attr.ah_attr.grh.dgid = dest.gid;
+            //     qp_attr.ah_attr.grh.sgid_index = 0;
+            //     qp_attr.ah_attr.grh.hop_limit = 1;
+            //     qp_attr.ah_attr.grh.traffic_class = 0;
+            // }
 
             let ret = ibv_modify_qp(
                 self.qp,
-                &mut attr,
+                &mut qp_attr,
                 (ibv_qp_attr_mask::IBV_QP_STATE
                     | ibv_qp_attr_mask::IBV_QP_AV
                     | ibv_qp_attr_mask::IBV_QP_PATH_MTU
@@ -324,16 +324,16 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
                 }));
             }
 
-            attr.qp_state = ibv_qp_state::IBV_QPS_RTS;
-            attr.timeout = 14;
-            attr.retry_cnt = 7;
-            attr.rnr_retry = 7;
-            attr.sq_psn = 0;
-            attr.max_rd_atomic = 1;
+            qp_attr.qp_state = ibv_qp_state::IBV_QPS_RTS;
+            qp_attr.timeout = 14;
+            qp_attr.retry_cnt = 7;
+            qp_attr.rnr_retry = 7;
+            qp_attr.sq_psn = 0;
+            qp_attr.max_rd_atomic = 1;
 
             let ret = ibv_modify_qp(
                 self.qp,
-                &mut attr,
+                &mut qp_attr,
                 (ibv_qp_attr_mask::IBV_QP_STATE
                     | ibv_qp_attr_mask::IBV_QP_TIMEOUT
                     | ibv_qp_attr_mask::IBV_QP_RETRY_CNT
