@@ -223,6 +223,8 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
             stream.write_all(buffer)?;
         }
 
+        sleep(Duration::from_secs(5));
+
         Ok(())
     }
 
