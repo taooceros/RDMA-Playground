@@ -9,6 +9,8 @@ use std::{
     mem::{size_of, transmute, zeroed, MaybeUninit},
     net::{IpAddr, SocketAddr, TcpListener},
     ptr::{null, null_mut},
+    thread::sleep,
+    time::Duration,
 };
 
 use self::{
@@ -58,7 +60,16 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
 
             println!(
                 "ibv_open_device: {:?}",
-                CStr::from_ptr(self.ctx.as_ref().unwrap().device.as_ref().unwrap().name.as_ptr())
+                CStr::from_ptr(
+                    self.ctx
+                        .as_ref()
+                        .unwrap()
+                        .device
+                        .as_ref()
+                        .unwrap()
+                        .name
+                        .as_ptr()
+                )
             );
 
             if self.ctx.is_null() {
@@ -179,6 +190,8 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
 
         let dest_info = unsafe { *(buffer.as_ptr() as *const DestQpInfo) };
 
+        println!("Received dest_info: {:?}", dest_info);
+
         self.connect_qp_to_dest(1, 1, dest_info)?;
 
         Ok(())
@@ -201,6 +214,8 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
 
             stream.write_all(buffer)?;
         }
+
+        sleep(Duration::from_secs(10));
 
         Ok(())
     }
