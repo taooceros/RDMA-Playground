@@ -6,6 +6,7 @@ executable := "rdma_ring_buffer_rust"
 alias s := server
 alias c := client
 
+alias q := quick-commit
 
 git_update:
 	git pull
@@ -19,6 +20,7 @@ server: build
 client: build
 	./target/debug/{{executable}} -s {{server_ip}} --port {{port}}
 
-update:
+quick-commit:
 	git add .
 	git commit -am "update"
+	git push
