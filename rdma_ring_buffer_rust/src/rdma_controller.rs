@@ -213,12 +213,6 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
         gid_index: Option<NonZeroI32>,
     ) -> Result<(), Box<dyn Error>> {
         unsafe {
-            println!(
-                "{} {}",
-                self.port_attr.assume_init().max_mtu,
-                self.port_attr.assume_init().lid
-            );
-
             let mut gid: ibv_gid = zeroed();
 
             if let Some(gid_index) = gid_index {
@@ -231,25 +225,33 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
                 }
             }
 
-            let dest_info = DestQpInfo {
+            let source_info = DestQpInfo {
                 lid: self.port_attr.assume_init().lid,
                 qpn: (*self.qp).qp_num,
                 psn: 0,
                 gid: gid,
             };
 
-            println!("{:?}", dest_info);
+            println!("{:?}", source_info);
 
             let socket_addr = SocketAddr::new(server_addr, port);
 
             let mut stream = std::net::TcpStream::connect(socket_addr)?;
 
-            let buffer = transmute::<&DestQpInfo, &[u8; size_of::<DestQpInfo>()]>(&dest_info);
+            let buffer = transmute::<&DestQpInfo, &[u8; size_of::<DestQpInfo>()]>(&source_info);
 
             stream.write_all(buffer)?;
-        }
 
-        sleep(Duration::from_secs(5));
+            let buffer = &mut [0u8; size_of::<DestQpInfo>()];
+
+            stream.read_exact(buffer)?;
+
+            let dest_info = *(buffer.as_ptr() as *const DestQpInfo);
+
+            println!("Received {:?}", dest_info);
+
+            self.connect_qp_to_dest(0, 1, dest_info)?;
+        }
 
         Ok(())
     }
@@ -267,7 +269,7 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
         &mut self,
         sl: u8,
         port: u8,
-        dest: DestQpInfo
+        dest: DestQpInfo,
     ) -> Result<(), Box<dyn Error>> {
         unsafe {
             let mut qp_attr = ibv_qp_attr {
@@ -382,6 +384,10 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
 
             Ok(())
         }
+    }
+
+    fn handshake(&mut self) {
+        
     }
 }
 
