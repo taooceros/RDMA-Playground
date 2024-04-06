@@ -29,6 +29,7 @@ fn main() {
     let config = rdma_controller::config::Config {
         dev_name: args.dev,
         connection_type,
+        gid_index: args.gid_index,
     };
 
     match ib_resource.setup_ib(config) {

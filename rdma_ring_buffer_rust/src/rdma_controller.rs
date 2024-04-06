@@ -8,6 +8,7 @@ use std::{
     io::{Read, Write},
     mem::{size_of, transmute, zeroed, MaybeUninit},
     net::{IpAddr, SocketAddr, TcpListener},
+    num::NonZeroI32,
     ptr::{null, null_mut},
     thread::sleep,
     time::Duration,
@@ -181,7 +182,11 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
         }
     }
 
-    fn connect_qp_server(&mut self, port: u16) -> Result<(), Box<dyn Error>> {
+    fn connect_qp_server(
+        &mut self,
+        port: u16,
+        gid_index: Option<NonZeroI32>,
+    ) -> Result<(), Box<dyn Error>> {
         let socket_addr = SocketAddr::new(IpAddr::V4("0.0.0.0".parse().unwrap()), port);
 
         let listener = TcpListener::bind(socket_addr)?;
@@ -201,7 +206,12 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
         Ok(())
     }
 
-    fn connect_qp_client(&mut self, server_addr: IpAddr, port: u16) -> Result<(), Box<dyn Error>> {
+    fn connect_qp_client(
+        &mut self,
+        server_addr: IpAddr,
+        port: u16,
+        gid_index: Option<NonZeroI32>,
+    ) -> Result<(), Box<dyn Error>> {
         unsafe {
             println!(
                 "{} {}",
@@ -209,11 +219,23 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
                 self.port_attr.assume_init().lid
             );
 
+            let mut gid: ibv_gid = zeroed();
+
+            if let Some(gid_index) = gid_index {
+                let ret = ibv_query_gid(self.ctx, 1, gid_index.get(), &mut gid);
+                if ret > 0 {
+                    panic!(
+                        "Could not get local gid for gid index {}\n",
+                        gid_index.get()
+                    );
+                }
+            }
+
             let dest_info = DestQpInfo {
                 lid: self.port_attr.assume_init().lid,
                 qpn: (*self.qp).qp_num,
                 psn: 0,
-                gid: zeroed(),
+                gid: gid,
             };
 
             println!("{:?}", dest_info);
@@ -234,9 +256,9 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
 
     fn connect_dest(&mut self, config: Config) -> Result<(), Box<dyn Error>> {
         match config.connection_type {
-            ConnectionType::Server { port } => self.connect_qp_server(port),
+            ConnectionType::Server { port } => self.connect_qp_server(port, config.gid_index),
             ConnectionType::Client { server_addr, port } => {
-                self.connect_qp_client(server_addr, port)
+                self.connect_qp_client(server_addr, port, config.gid_index)
             }
         }
     }
@@ -245,7 +267,7 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
         &mut self,
         sl: u8,
         port: u8,
-        dest: DestQpInfo,
+        dest: DestQpInfo
     ) -> Result<(), Box<dyn Error>> {
         unsafe {
             let mut qp_attr = ibv_qp_attr {
@@ -299,13 +321,13 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
                 ..zeroed()
             };
 
-            // if dest.gid.global.interface_id != 0 {
-            //     qp_attr.ah_attr.is_global = 1;
-            //     qp_attr.ah_attr.grh.dgid = dest.gid;
-            //     qp_attr.ah_attr.grh.sgid_index = 0;
-            //     qp_attr.ah_attr.grh.hop_limit = 1;
-            //     qp_attr.ah_attr.grh.traffic_class = 0;
-            // }
+            if dest.gid.global.interface_id != 0 {
+                qp_attr.ah_attr.is_global = 1;
+                qp_attr.ah_attr.grh.dgid = dest.gid;
+                qp_attr.ah_attr.grh.sgid_index = 0;
+                qp_attr.ah_attr.grh.hop_limit = 1;
+                qp_attr.ah_attr.grh.traffic_class = 0;
+            }
 
             let ret = ibv_modify_qp(
                 self.qp,
