@@ -153,6 +153,7 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
             println!("max_qp_wr: {}", self.dev_attr.assume_init().max_qp_wr);
 
             let mut qp_init_attr = ibv_qp_init_attr {
+                qp_type: ibv_qp_type::IBV_QPT_RC,
                 send_cq: self.cq,
                 recv_cq: self.cq,
                 srq: self.srq,
@@ -163,7 +164,6 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
                     max_recv_sge: 1,
                     ..zeroed()
                 },
-                qp_type: ibv_qp_type::IBV_QPT_RC,
                 ..zeroed()
             };
 
@@ -203,7 +203,11 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
 
     fn connect_qp_client(&mut self, server_addr: IpAddr, port: u16) -> Result<(), Box<dyn Error>> {
         unsafe {
-            println!("{} {}", self.port_attr.assume_init().max_mtu, self.port_attr.assume_init().lid);
+            println!(
+                "{} {}",
+                self.port_attr.assume_init().max_mtu,
+                self.port_attr.assume_init().lid
+            );
 
             let dest_info = DestQpInfo {
                 lid: self.port_attr.assume_init().lid,
@@ -279,7 +283,7 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
 
             let mut qp_attr = ibv_qp_attr {
                 qp_state: ibv_qp_state::IBV_QPS_RTR,
-                path_mtu: ibv_mtu::IBV_MTU_1024,
+                path_mtu: ibv_mtu::IBV_MTU_4096,
                 dest_qp_num: dest.qpn,
                 rq_psn: dest.psn,
                 max_dest_rd_atomic: 1,
@@ -331,7 +335,7 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
             qp_attr.timeout = 14;
             qp_attr.retry_cnt = 7;
             qp_attr.rnr_retry = 7;
-            qp_attr.sq_psn = 0;
+            qp_attr.sq_psn = dest.psn;
             qp_attr.max_rd_atomic = 1;
 
             let ret = ibv_modify_qp(

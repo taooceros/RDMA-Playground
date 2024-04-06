@@ -1,2 +1,7 @@
 builddir/
 target/
+CMakeFiles/
+*.cmake
+CMakeCache.txt
+Makefile
+pingpong
