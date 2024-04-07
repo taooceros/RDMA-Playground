@@ -20,7 +20,7 @@ server: build
 client: build
 	./target/debug/{{executable}} -s {{server_ip}} --port {{port}} -g 1
 
-quick-commit:
+quick-commit message="update":
 	git add .
-	git commit -am "update"
+	git commit -am "{{message}}"
 	git push
