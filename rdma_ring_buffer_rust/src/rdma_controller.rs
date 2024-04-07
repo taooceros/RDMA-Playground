@@ -22,7 +22,7 @@ use self::{
 pub mod config;
 mod qp_info;
 
-pub struct IbResource<'a, const BUFFER_SIZE: usize = 8192> {
+pub struct IbResource<'a> {
     ctx: *mut ibv_context,
     pd: *mut ibv_pd,
     mr: *mut ibv_mr,
@@ -31,11 +31,24 @@ pub struct IbResource<'a, const BUFFER_SIZE: usize = 8192> {
     srq: *mut ibv_srq,
     port_attr: MaybeUninit<ibv_port_attr>,
     dev_attr: MaybeUninit<ibv_device_attr>,
-    ib_buf: &'a mut [u8; BUFFER_SIZE],
+    ib_buf: &'a mut [u8],
+    buf_head: usize,
+    buf_tail: usize,
+    state: State,
 }
 
-impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
-    pub fn new() -> Self {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum State {
+    Init,
+    Connected,
+    Disconnected,
+    Error,
+}
+
+impl<'a> IbResource<'a> {
+    pub fn new(buffer_size: usize) -> Self {
+        let buffer = vec![0u8; buffer_size];
+
         IbResource {
             ctx: null_mut(),
             pd: null_mut(),
@@ -45,7 +58,10 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
             srq: null_mut(),
             port_attr: MaybeUninit::uninit(),
             dev_attr: MaybeUninit::uninit(),
-            ib_buf: Box::leak(Box::new([0; BUFFER_SIZE])),
+            ib_buf: Box::leak(buffer.into_boxed_slice()),
+            buf_head: 0,
+            buf_tail: 0,
+            state: State::Init,
         }
     }
 
@@ -104,7 +120,7 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
             self.mr = ibv_reg_mr(
                 self.pd,
                 self.ib_buf.as_mut_ptr() as *mut _,
-                BUFFER_SIZE,
+                self.ib_buf.len(),
                 (ibv_access_flags::IBV_ACCESS_LOCAL_WRITE
                     | ibv_access_flags::IBV_ACCESS_REMOTE_WRITE
                     | ibv_access_flags::IBV_ACCESS_REMOTE_READ)
@@ -177,6 +193,8 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
             }
 
             self.connect_dest(config).unwrap();
+
+            self.state = State::Connected;
 
             Ok(0)
         }
@@ -382,13 +400,102 @@ impl<'a, const BUFFER_SIZE: usize> IbResource<'a, BUFFER_SIZE> {
                 }));
             }
 
+            self.handshake();
+
             Ok(())
         }
     }
 
+    // fn send_message<M>(&mut self, message: M, wr_id: u64) {
+    //     if self.state != State::Connected {
+    //         panic!("QP is not connected");
+    //     }
+
+    //     let buffer = unsafe {
+    //         let buffer = &mut self.ib_buf[self.buf_head..self.buf_head + size_of::<M>()];
+    //         self.buf_head += size_of::<M>();
+    //         buffer
+    //     };
+    // }
+
     fn handshake(&mut self) {
-        
+        const HANDSHAKE_WR_ID: u64 = 0xdeadbeef;
+        unsafe {
+            let ret = post_send(
+                self.qp,
+                self.mr.as_ref().unwrap().lkey,
+                HANDSHAKE_WR_ID,
+                &mut self.ib_buf[..0],
+            );
+
+            if ret != 0 {
+                panic!("Failed to post send");
+            }
+
+            let ret = post_srq_recv(
+                self.srq,
+                self.mr.as_ref().unwrap().lkey,
+                HANDSHAKE_WR_ID,
+                &mut self.ib_buf[..0],
+            );
+
+            if ret != 0 {
+                panic!("Failed to post srq recv");
+            }
+        }
     }
+}
+
+fn post_srq_recv(srq: *mut ibv_srq, lkey: u32, wr_id: u64, buffer: &mut [u8]) -> i32 {
+    unsafe {
+        let mut bad_recv_wr = zeroed();
+
+        let mut list = ibv_sge {
+            addr: buffer.as_ptr() as u64,
+            length: buffer.len() as u32,
+            lkey: lkey,
+        };
+
+        let mut recv_wr = ibv_recv_wr {
+            wr_id: wr_id,
+            sg_list: &mut list,
+            num_sge: 1,
+            ..zeroed()
+        };
+
+        let ret = ibv_post_srq_recv(srq, &mut recv_wr, &mut bad_recv_wr);
+
+        return ret;
+    }
+}
+
+fn post_send(qp: *mut ibv_qp, lkey: u32, wr_id: u64, buffer: &mut [u8]) -> i32 {
+    unsafe {
+        let mut bad_send_wr = zeroed();
+
+        let mut list = ibv_sge {
+            addr: buffer.as_ptr() as u64,
+            length: buffer.len() as u32,
+            lkey: lkey,
+        };
+
+        let mut send_wr = ibv_send_wr {
+            wr_id: wr_id,
+            sg_list: &mut list,
+            num_sge: 1,
+            opcode: ibv_wr_opcode::IBV_WR_SEND,
+            send_flags: 0,
+            ..zeroed()
+        };
+
+        let ret = ibv_post_send(qp, &mut send_wr, &mut bad_send_wr);
+
+        return ret;
+    }
+}
+
+pub struct RdmaHandShake {
+    signal: u32,
 }
 
 pub enum ConnectionError {

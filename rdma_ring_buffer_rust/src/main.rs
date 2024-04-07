@@ -13,7 +13,7 @@ pub mod rdma_ring_buffer;
 fn main() {
     let args = GlobalArgs::parse();
 
-    let mut ib_resource: IbResource<'static, 4096> = rdma_controller::IbResource::new();
+    let mut ib_resource = rdma_controller::IbResource::new(8192);
 
     let connection_type = if args.server_addr.is_some() {
         rdma_controller::config::ConnectionType::Client {
