@@ -255,15 +255,15 @@ impl<'a> IbResource<'a> {
 
             let socket_addr = SocketAddr::new(server_addr, port);
 
-            let mut stream = std::net::TcpStream::connect(socket_addr)?;
+            let mut stream = std::net::TcpStream::connect(socket_addr).unwrap();
 
             let buffer = transmute::<&DestQpInfo, &[u8; size_of::<DestQpInfo>()]>(&source_info);
 
-            stream.write_all(buffer)?;
+            stream.write_all(buffer).unwrap();
 
             let buffer = &mut [0u8; size_of::<DestQpInfo>()];
 
-            stream.read_exact(buffer)?;
+            stream.read_exact(buffer).unwrap();
 
             let dest_info = *(buffer.as_ptr() as *const DestQpInfo);
 
