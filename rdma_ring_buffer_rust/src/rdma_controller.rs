@@ -219,11 +219,23 @@ impl<'a> IbResource<'a> {
         let dest_info = unsafe { *(buffer.as_ptr() as *const DestQpInfo) };
 
         unsafe {
+            let mut gid: ibv_gid = zeroed();
+
+            if let Some(gid_index) = gid_index {
+                let ret = ibv_query_gid(self.ctx, 1, gid_index.get(), &mut gid);
+                if ret > 0 {
+                    panic!(
+                        "Could not get local gid for gid index {}\n",
+                        gid_index.get()
+                    );
+                }
+            }
+
             let source_info = DestQpInfo {
                 lid: self.port_attr.assume_init().lid,
                 qpn: (*self.qp).qp_num,
                 psn: 0,
-                gid: zeroed(),
+                gid,
             };
 
             stream.write(transmute::<&DestQpInfo, &[u8; size_of::<DestQpInfo>()]>(
