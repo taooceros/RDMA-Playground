@@ -117,7 +117,7 @@ impl<'a> IbResource<'a> {
             /* occupies the second half */
             //
 
-            println!("ib_buf.len(): {}", self.ib_buf.len());
+            // println!("ib_buf.len(): {}", self.ib_buf.len());
 
             self.mr = ibv_reg_mr(
                 self.pd,
