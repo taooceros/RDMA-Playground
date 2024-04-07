@@ -56,8 +56,8 @@ impl<'a> IbResource<'a> {
             cq: null_mut(),
             qp: null_mut(),
             srq: null_mut(),
-            port_attr: MaybeUninit::uninit(),
-            dev_attr: MaybeUninit::uninit(),
+            port_attr: MaybeUninit::zeroed(),
+            dev_attr: MaybeUninit::zeroed(),
             ib_buf: Box::leak(buffer.into_boxed_slice()),
             buf_head: 0,
             buf_tail: 0,
@@ -151,13 +151,12 @@ impl<'a> IbResource<'a> {
 
             // create srq
 
-            let mut ibv_srq_init_attr = MaybeUninit::<ibv_srq_init_attr>::uninit();
+            let mut ibv_srq_init_attr: ibv_srq_init_attr = zeroed();
 
-            ibv_srq_init_attr.assume_init().attr.max_wr =
-                self.dev_attr.assume_init().max_srq_wr as u32;
-            ibv_srq_init_attr.assume_init().attr.max_sge = 1;
+            ibv_srq_init_attr.attr.max_wr = self.dev_attr.assume_init().max_srq_wr as u32;
+            ibv_srq_init_attr.attr.max_sge = 1;
 
-            self.srq = ibv_create_srq(self.pd, ibv_srq_init_attr.as_mut_ptr());
+            self.srq = ibv_create_srq(self.pd, &mut ibv_srq_init_attr);
 
             if self.srq.is_null() {
                 let os_error = std::io::Error::last_os_error();
