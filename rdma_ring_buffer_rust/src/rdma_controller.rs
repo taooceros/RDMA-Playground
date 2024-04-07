@@ -218,6 +218,19 @@ impl<'a> IbResource<'a> {
 
         let dest_info = unsafe { *(buffer.as_ptr() as *const DestQpInfo) };
 
+        unsafe {
+            let source_info = DestQpInfo {
+                lid: self.port_attr.assume_init().lid,
+                qpn: (*self.qp).qp_num,
+                psn: random::<u32>(),
+                gid: zeroed(),
+            };
+
+            stream.write(transmute::<&DestQpInfo, &[u8; size_of::<DestQpInfo>()]>(
+                &source_info,
+            ))?;
+        }
+
         println!("Received dest_info: {:?}", dest_info);
 
         self.connect_qp_to_dest(0, 1, dest_info)?;
