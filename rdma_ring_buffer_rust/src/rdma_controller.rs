@@ -222,7 +222,7 @@ impl<'a> IbResource<'a> {
             let source_info = DestQpInfo {
                 lid: self.port_attr.assume_init().lid,
                 qpn: (*self.qp).qp_num,
-                psn: random::<u32>(),
+                psn: 0,
                 gid: zeroed(),
             };
 
