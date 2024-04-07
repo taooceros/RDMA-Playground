@@ -15,10 +15,10 @@ build: git_update
 	cargo build
 
 server: build
-	./target/debug/{{executable}} --port {{port}}
+	./target/debug/{{executable}} --port {{port}} -g 1
 
 client: build
-	./target/debug/{{executable}} -s {{server_ip}} --port {{port}}
+	./target/debug/{{executable}} -s {{server_ip}} --port {{port}} -g 1
 
 quick-commit:
 	git add .
