@@ -491,6 +491,8 @@ impl<'a> IbResource<'a> {
                     continue;
                 }
 
+                println!("Polled {} wc", num_polled);
+
                 for wc in wc_buffer[..num_polled as usize].iter() {
                     let wc = wc.assume_init_ref();
 
