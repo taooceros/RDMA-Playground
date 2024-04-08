@@ -468,6 +468,30 @@ impl<'a> IbResource<'a> {
             if ret != 0 {
                 panic!("Failed to post srq recv");
             }
+
+            loop {
+                let mut wc = MaybeUninit::zeroed();
+
+                let ret = ibv_poll_cq(self.cq, 1, wc.as_mut_ptr());
+
+                if ret < 0 {
+                    panic!("Failed to poll cq");
+                }
+
+                if ret == 0 {
+                    continue;
+                }
+
+                let wc = wc.assume_init();
+
+                if wc.wr_id == HANDSHAKE_WR_ID {
+                    if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
+                        panic!("Handshake failed");
+                    }
+
+                    break;
+                }
+            }
         }
     }
 }
