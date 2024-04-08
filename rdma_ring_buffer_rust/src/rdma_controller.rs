@@ -473,42 +473,46 @@ impl<'a> IbResource<'a> {
             let mut count = 0;
 
             loop {
-                let mut wc = MaybeUninit::zeroed();
+                const WC_INIT: MaybeUninit<ibv_wc> = MaybeUninit::zeroed();
 
-                let ret = ibv_poll_cq(self.cq, 1, wc.as_mut_ptr());
+                let mut wc_buffer = [WC_INIT; 16];
 
-                if ret < 0 {
+                let num_polled = ibv_poll_cq(self.cq, 16, &mut wc_buffer as *mut _ as *mut _);
+
+                if num_polled < 0 {
                     panic!("Failed to poll cq");
                 }
 
-                if ret == 0 {
+                if num_polled == 0 {
                     continue;
                 }
 
-                let wc = wc.assume_init();
+                for wc in wc_buffer[..num_polled as usize].iter() {
+                    let wc = wc.assume_init_ref();
 
-                if wc.wr_id == HANDSHAKE_WR_ID && wc.opcode == ibv_wc_opcode::IBV_WC_RECV {
-                    if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
-                        panic!("Handshake failed");
+                    if wc.wr_id == HANDSHAKE_WR_ID && wc.opcode == ibv_wc_opcode::IBV_WC_RECV {
+                        if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
+                            panic!("Handshake failed");
+                        }
+
+                        println!("Receive successful");
+
+                        count += 1;
                     }
 
-                    println!("Receive successful");
+                    if wc.wr_id == HANDSHAKE_WR_ID && wc.opcode == ibv_wc_opcode::IBV_WC_SEND {
+                        if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
+                            panic!("Handshake failed");
+                        }
 
-                    count += 1;
-                }
+                        println!("Send successful");
 
-                if wc.wr_id == HANDSHAKE_WR_ID && wc.opcode == ibv_wc_opcode::IBV_WC_SEND {
-                    if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
-                        panic!("Handshake failed");
+                        count += 1;
                     }
 
-                    println!("Send successful");
-
-                    count += 1;
-                }
-
-                if count == 2 {
-                    break;
+                    if count == 2 {
+                        break;
+                    }
                 }
             }
         }
