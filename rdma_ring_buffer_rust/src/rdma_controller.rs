@@ -484,6 +484,8 @@ impl<'a> IbResource<'a> {
 
                 let wc = wc.assume_init();
 
+                println!("wc.wr_id: {}", wc.wr_id);
+
                 if wc.wr_id == HANDSHAKE_WR_ID {
                     if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
                         panic!("Handshake failed");
