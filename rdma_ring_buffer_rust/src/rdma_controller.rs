@@ -487,8 +487,6 @@ impl<'a> IbResource<'a> {
                     panic!("Failed to poll cq");
                 }
 
-                println!("Polled {}", num_polled);
-
                 if num_polled == 0 {
                     continue;
                 }
