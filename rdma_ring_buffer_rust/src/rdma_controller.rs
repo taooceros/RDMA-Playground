@@ -247,6 +247,9 @@ impl<'a> IbResource<'a> {
 
         self.connect_qp_to_dest(0, 1, dest_info)?;
 
+        self.handshake(true);
+
+
         Ok(())
     }
 
@@ -296,6 +299,8 @@ impl<'a> IbResource<'a> {
 
             self.connect_qp_to_dest(0, 1, dest_info)?;
         }
+
+        self.handshake(false);
 
         Ok(())
     }
@@ -425,9 +430,6 @@ impl<'a> IbResource<'a> {
                     to_state: "RTS",
                 }));
             }
-
-            self.handshake();
-
             Ok(())
         }
     }
@@ -444,13 +446,27 @@ impl<'a> IbResource<'a> {
     //     };
     // }
 
-    fn handshake(&mut self) {
-        const HANDSHAKE_WR_ID: u64 = 0xdeadbeef;
+    fn handshake(&mut self, server: bool) {
+        const HANDSHAKE_WR_ID_SERVER: u64 = 0xdeadbeef;
+        const HANDSHAKE_WR_ID_CLIENT: u64 = 0xdeadbaef;
+
+        let send_wr_id = if server {
+            HANDSHAKE_WR_ID_SERVER
+        } else {
+            HANDSHAKE_WR_ID_CLIENT
+        };
+
+        let recv_wr_id = if server {
+            HANDSHAKE_WR_ID_CLIENT
+        } else {
+            HANDSHAKE_WR_ID_SERVER
+        };
+
         unsafe {
             let ret = post_send(
                 self.qp,
                 self.mr.as_ref().unwrap().lkey,
-                HANDSHAKE_WR_ID,
+                send_wr_id,
                 &mut self.ib_buf[..0],
             );
 
@@ -461,13 +477,15 @@ impl<'a> IbResource<'a> {
             let ret = post_srq_recv(
                 self.srq,
                 self.mr.as_ref().unwrap().lkey,
-                HANDSHAKE_WR_ID,
+                recv_wr_id,
                 &mut self.ib_buf[..0],
             );
 
             if ret != 0 {
                 panic!("Failed to post srq recv");
             }
+
+            let mut count = 0;
 
             loop {
                 let mut wc = MaybeUninit::zeroed();
@@ -486,11 +504,23 @@ impl<'a> IbResource<'a> {
 
                 println!("wc.wr_id: {}", wc.wr_id);
 
-                if wc.wr_id == HANDSHAKE_WR_ID {
+                if wc.wr_id == send_wr_id {
                     if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
                         panic!("Handshake failed");
                     }
 
+                    count += 1;
+                }
+
+                if wc.wr_id == recv_wr_id {
+                    if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
+                        panic!("Handshake failed");
+                    }
+
+                    count += 1;
+                }
+
+                if count == 2 {
                     break;
                 }
             }
