@@ -448,22 +448,26 @@ impl<'a> IbResource<'a> {
         const HANDSHAKE_WR_ID: u64 = 1;
 
         unsafe {
+            self.ib_buf[0] = random();
+
             let ret = post_send(
                 self.qp,
                 self.mr.as_ref().unwrap().lkey,
                 HANDSHAKE_WR_ID,
-                &mut self.ib_buf[..0],
+                &mut self.ib_buf[..1],
             );
 
             if ret != 0 {
                 panic!("Failed to post send");
             }
 
+            println!("Sent data: {}", self.ib_buf[0]);
+
             let ret = post_srq_recv(
                 self.srq,
                 self.mr.as_ref().unwrap().lkey,
                 HANDSHAKE_WR_ID,
-                &mut self.ib_buf[..0],
+                &mut self.ib_buf[1..2],
             );
 
             if ret != 0 {
@@ -497,7 +501,7 @@ impl<'a> IbResource<'a> {
                             panic!("Handshake failed");
                         }
 
-                        println!("Receive successful");
+                        println!("Receive successful with data: {}", self.ib_buf[1]);
 
                         count += 1;
                     }
