@@ -247,9 +247,6 @@ impl<'a> IbResource<'a> {
 
         self.connect_qp_to_dest(0, 1, dest_info)?;
 
-        self.handshake(true);
-
-
         Ok(())
     }
 
@@ -299,8 +296,6 @@ impl<'a> IbResource<'a> {
 
             self.connect_qp_to_dest(0, 1, dest_info)?;
         }
-
-        self.handshake(false);
 
         Ok(())
     }
@@ -430,6 +425,9 @@ impl<'a> IbResource<'a> {
                     to_state: "RTS",
                 }));
             }
+
+            self.handshake();
+
             Ok(())
         }
     }
@@ -446,27 +444,14 @@ impl<'a> IbResource<'a> {
     //     };
     // }
 
-    fn handshake(&mut self, server: bool) {
-        const HANDSHAKE_WR_ID_SERVER: u64 = 1;
-        const HANDSHAKE_WR_ID_CLIENT: u64 = 2;
-
-        let send_wr_id = if server {
-            HANDSHAKE_WR_ID_SERVER
-        } else {
-            HANDSHAKE_WR_ID_CLIENT
-        };
-
-        let recv_wr_id = if server {
-            HANDSHAKE_WR_ID_CLIENT
-        } else {
-            HANDSHAKE_WR_ID_SERVER
-        };
+    fn handshake(&mut self) {
+        const HANDSHAKE_WR_ID: u64 = 1;
 
         unsafe {
             let ret = post_send(
                 self.qp,
                 self.mr.as_ref().unwrap().lkey,
-                send_wr_id,
+                HANDSHAKE_WR_ID,
                 &mut self.ib_buf[..0],
             );
 
@@ -477,7 +462,7 @@ impl<'a> IbResource<'a> {
             let ret = post_srq_recv(
                 self.srq,
                 self.mr.as_ref().unwrap().lkey,
-                recv_wr_id,
+                HANDSHAKE_WR_ID,
                 &mut self.ib_buf[..0],
             );
 
@@ -502,20 +487,22 @@ impl<'a> IbResource<'a> {
 
                 let wc = wc.assume_init();
 
-                println!("wc.wr_id: {}", wc.wr_id);
-
-                if wc.wr_id == send_wr_id {
+                if wc.wr_id == HANDSHAKE_WR_ID && wc.opcode == ibv_wc_opcode::IBV_WC_RECV {
                     if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
                         panic!("Handshake failed");
                     }
+
+                    println!("Receive successful");
 
                     count += 1;
                 }
 
-                if wc.wr_id == recv_wr_id {
+                if wc.wr_id == HANDSHAKE_WR_ID && wc.opcode == ibv_wc_opcode::IBV_WC_SEND {
                     if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
                         panic!("Handshake failed");
                     }
+
+                    println!("Send successful");
 
                     count += 1;
                 }
