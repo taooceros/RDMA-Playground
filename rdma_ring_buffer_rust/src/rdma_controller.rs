@@ -447,8 +447,8 @@ impl<'a> IbResource<'a> {
     // }
 
     fn handshake(&mut self, server: bool) {
-        const HANDSHAKE_WR_ID_SERVER: u64 = -1;
-        const HANDSHAKE_WR_ID_CLIENT: u64 = -2;
+        const HANDSHAKE_WR_ID_SERVER: u64 = 1;
+        const HANDSHAKE_WR_ID_CLIENT: u64 = 2;
 
         let send_wr_id = if server {
             HANDSHAKE_WR_ID_SERVER
