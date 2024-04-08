@@ -563,7 +563,7 @@ fn post_send(qp: *mut ibv_qp, lkey: u32, wr_id: u64, buffer: &mut [u8]) -> i32 {
             sg_list: &mut list,
             num_sge: 1,
             opcode: ibv_wr_opcode::IBV_WR_SEND,
-            send_flags: 0,
+            send_flags: ibv_send_flags::IBV_SEND_SIGNALED.0,
             ..zeroed()
         };
 
