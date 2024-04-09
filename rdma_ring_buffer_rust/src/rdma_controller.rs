@@ -543,7 +543,7 @@ impl<'a> IbResource<'a> {
                 self.qp,
                 self.mr.as_ref().unwrap().lkey,
                 2,
-                &mut self.ib_buf[..size_of::<M>()],
+                &mut self.ib_buf[..size_of::<M>() * message.len()],
             );
 
             if ret != 0 {
