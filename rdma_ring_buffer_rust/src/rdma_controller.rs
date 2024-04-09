@@ -518,7 +518,7 @@ impl<'a> IbResource<'a> {
 
                     if count == 2 {
                         println!("Handshake complete");
-                        break;
+                        return;
                     }
                 }
             }

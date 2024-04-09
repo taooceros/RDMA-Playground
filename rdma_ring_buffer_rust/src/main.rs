@@ -35,7 +35,7 @@ fn main() {
         gid_index: args.gid_index,
     };
 
-    ib_resource.setup_ib(config).unwrap();
+    assert_eq!(ib_resource.setup_ib(config).unwrap(), 0);
 
     let mut ring_buffer: RingBuffer<u32, 4096, _> =
         rdma_ring_buffer::RingBuffer::new_alloc(&mut ib_resource);
