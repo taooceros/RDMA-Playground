@@ -46,7 +46,11 @@ impl<'a, T: Send + Copy + Sized, const N: usize, CM: CommunicationManager>
             .recv_message::<Message<T>>()
             .unwrap();
 
-        for message in messages {
+        println!("Message length: {}", messages.len());
+
+        for (i, message) in messages.iter().enumerate() {
+            println!("process {}-th message", i);
+
             if let Message::Write { data } = message {
                 let write_pos = tail % N;
                 self.buffer[write_pos] = MaybeUninit::new(*data);

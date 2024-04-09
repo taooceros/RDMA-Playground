@@ -623,9 +623,11 @@ impl<'a> IbResource<'a> {
                             panic!("Receive failed");
                         }
 
-                        println!("Receive successful");
+                        let len = 128;
 
-                        return transmute(buffer[..(wc.byte_len as usize)].as_ref());
+                        println!("Receive {} bytes", wc.byte_len);
+
+                        return slice::from_raw_parts(buffer.as_ptr().cast(), len);
                     }
                 }
             }
