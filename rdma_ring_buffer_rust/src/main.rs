@@ -44,23 +44,31 @@ fn main() {
 
     match connection_type {
         rdma_controller::config::ConnectionType::Client { .. } => {
-            let mut buffer = [0; 8192];
+            println!("Client sending data");
 
-            for i in 0..8192 {
+            let mut buffer = [0; 512];
+
+            for i in 0..512 {
                 buffer[i] = random();
             }
 
-            ring_buffer.write(&mut buffer, 8192);
+            ring_buffer.write(&mut buffer, 512);
         }
         rdma_controller::config::ConnectionType::Server { .. } => {
-            let mut buffer: [MaybeUninit<u32>; 8192] = [MaybeUninit::uninit(); 8192];
+            println!("Server waiting for data");
+
+            let mut buffer: [MaybeUninit<u32>; 512] = [MaybeUninit::uninit(); 512];
             let mut total_count = 0;
             loop {
-                let count = ring_buffer.read(&mut buffer, 8192);
+                let count = ring_buffer.read(&mut buffer, 512);
                 total_count += count;
                 for i in 0..count {
                     let value = unsafe { buffer[i].assume_init() };
                     println!("Read value: {}", value);
+                }
+
+                if total_count >= 512 {
+                    break;
                 }
             }
         }

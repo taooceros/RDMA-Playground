@@ -503,7 +503,7 @@ impl<'a> IbResource<'a> {
                             panic!("Handshake failed");
                         }
 
-                        println!("Receive successful with data: {}", self.ib_buf[1]);
+                        println!("Receive successful with data: {}", self.ib_buf[offset]);
 
                         count += 1;
                     }
@@ -588,7 +588,6 @@ impl<'a> IbResource<'a> {
             let ret = post_srq_recv(self.srq, self.mr.as_ref().unwrap().lkey, 3, buffer);
 
             if ret != 0 {
-
                 panic!("Failed to post srq recv");
             }
 
@@ -634,6 +633,8 @@ impl<'a> IbResource<'a> {
             let buffer = &mut self.ib_buf[buf_offset..];
 
             let ret = post_srq_recv(self.srq, self.mr.as_ref().unwrap().lkey, 3, buffer);
+
+
 
             if ret != 0 {
                 panic!("Failed to post srq recv with error code {ret}");
@@ -695,9 +696,8 @@ fn post_srq_recv(srq: *mut ibv_srq, lkey: u32, wr_id: u64, buffer: &mut [u8]) ->
         let ret = ibv_post_srq_recv(srq, &mut recv_wr, &mut bad_recv_wr);
 
         if ret != 0 {
-
+            println!("last os error: {}", std::io::Error::last_os_error());
             panic!("Failed to post srq recv with error code {ret}");
-
         }
 
         return ret;

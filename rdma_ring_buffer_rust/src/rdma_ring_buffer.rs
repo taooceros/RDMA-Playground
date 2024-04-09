@@ -41,19 +41,18 @@ impl<'a, T: Send + Copy + Sized, const N: usize, CM: CommunicationManager>
         let head = self.head.load_acquire();
         let tail = self.tail.load_acquire();
 
-        if let Some(messages) = self
+        let messages = self
             .communication_manager
-            .try_recv_message::<Message<T>>()
-            .unwrap()
-        {
-            for message in messages {
-                if let Message::Write { data } = message {
-                    let write_pos = tail % N;
-                    self.buffer[write_pos] = MaybeUninit::new(*data);
-                    self.tail.store_release(tail + 1);
-                } else {
-                    panic!("Only One Reader should exists");
-                }
+            .recv_message::<Message<T>>()
+            .unwrap();
+
+        for message in messages {
+            if let Message::Write { data } = message {
+                let write_pos = tail % N;
+                self.buffer[write_pos] = MaybeUninit::new(*data);
+                self.tail.store_release(tail + 1);
+            } else {
+                panic!("Only One Reader should exists");
             }
         }
 
@@ -88,17 +87,16 @@ impl<'a, T: Send + Copy + Sized, const N: usize, CM: CommunicationManager>
         let head = self.head.load_acquire();
         let tail = self.tail.load_acquire();
 
-        while let Some(messages) = self
+        let messages = self
             .communication_manager
-            .try_recv_message::<Message<T>>()
-            .unwrap()
-        {
-            for message in messages {
-                if let Message::Read(size) = message {
-                    self.head.store_release(head + size);
-                } else {
-                    panic!("Only One Writer should exists");
-                }
+            .recv_message::<Message<T>>()
+            .unwrap();
+
+        for message in messages {
+            if let Message::Read(size) = message {
+                self.head.store_release(head + size);
+            } else {
+                panic!("Only One Writer should exists");
             }
         }
 
@@ -117,6 +115,18 @@ impl<'a, T: Send + Copy + Sized, const N: usize, CM: CommunicationManager>
         }
 
         self.tail.store_release(tail + write_size);
+
+        let mut send_buffer = Vec::with_capacity(write_size);
+
+        for i in 0..write_size {
+            send_buffer.push(Message::Write {
+                data: buffer[i],
+            });
+        }
+
+        self.communication_manager
+            .send_message(&send_buffer)
+            .unwrap();
 
         write_size
     }
