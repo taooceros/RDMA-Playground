@@ -463,11 +463,13 @@ impl<'a> IbResource<'a> {
 
             println!("Sent data: {}", self.ib_buf[0]);
 
+            let offset = self.ib_buf.len() / 2;
+
             let ret = post_srq_recv(
                 self.srq,
                 self.mr.as_ref().unwrap().lkey,
                 HANDSHAKE_WR_ID,
-                &mut self.ib_buf[1..2],
+                &mut self.ib_buf[offset..offset + 1],
             );
 
             if ret != 0 {
@@ -586,6 +588,7 @@ impl<'a> IbResource<'a> {
             let ret = post_srq_recv(self.srq, self.mr.as_ref().unwrap().lkey, 3, buffer);
 
             if ret != 0 {
+
                 panic!("Failed to post srq recv");
             }
 
@@ -628,12 +631,12 @@ impl<'a> IbResource<'a> {
         unsafe {
             let buf_offset = self.ib_buf.len() / 2;
 
-            let buffer = &mut self.ib_buf[buf_offset..buf_offset + size_of::<M>()];
+            let buffer = &mut self.ib_buf[buf_offset..];
 
             let ret = post_srq_recv(self.srq, self.mr.as_ref().unwrap().lkey, 3, buffer);
 
             if ret != 0 {
-                panic!("Failed to post srq recv");
+                panic!("Failed to post srq recv with error code {ret}");
             }
 
             // wait for work completion
@@ -690,6 +693,12 @@ fn post_srq_recv(srq: *mut ibv_srq, lkey: u32, wr_id: u64, buffer: &mut [u8]) ->
         };
 
         let ret = ibv_post_srq_recv(srq, &mut recv_wr, &mut bad_recv_wr);
+
+        if ret != 0 {
+
+            panic!("Failed to post srq recv with error code {ret}");
+
+        }
 
         return ret;
     }
