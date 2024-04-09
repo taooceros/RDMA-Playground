@@ -42,37 +42,42 @@ fn main() {
 
     println!("Starting RDMA Ring Buffer Test");
 
-    const NUMBER_MESSAGE: usize = 64;
+    const BATCH_SIZE: usize = 64;
+    const MAX_ITER: usize = 64;
 
     match connection_type {
         rdma_controller::config::ConnectionType::Client { .. } => {
-            println!("Client sending data");
+            for i in 0..MAX_ITER {
+                println!("iter: {}", i);
 
-            let mut buffer = [0; NUMBER_MESSAGE];
+                let mut buffer = [0; BATCH_SIZE];
 
-            for i in 0..NUMBER_MESSAGE {
-                buffer[i] = random();
-                println!("Write value: {}", buffer[i]);
-            }
-
-            ring_buffer.write(&mut buffer, NUMBER_MESSAGE);
-        }
-        rdma_controller::config::ConnectionType::Server { .. } => {
-            println!("Server waiting for data");
-
-            let mut buffer: [MaybeUninit<u32>; NUMBER_MESSAGE] =
-                [MaybeUninit::uninit(); NUMBER_MESSAGE];
-            let mut total_count = 0;
-            loop {
-                let count = ring_buffer.read(&mut buffer, NUMBER_MESSAGE);
-                total_count += count;
-                for i in 0..count {
-                    let value = unsafe { buffer[i].assume_init() };
-                    println!("Read value: {}", value);
+                for i in 0..BATCH_SIZE {
+                    buffer[i] = random();
+                    println!("Write value: {}", buffer[i]);
                 }
 
-                if total_count >= NUMBER_MESSAGE {
-                    break;
+                ring_buffer.write(&mut buffer, BATCH_SIZE);
+            }
+        }
+        rdma_controller::config::ConnectionType::Server { .. } => {
+            for i in 0..MAX_ITER {
+                println!("iter: {}", i);
+
+                let mut buffer: [MaybeUninit<u32>; BATCH_SIZE] =
+                    [MaybeUninit::uninit(); BATCH_SIZE];
+                let mut total_count = 0;
+                loop {
+                    let count = ring_buffer.read(&mut buffer, BATCH_SIZE);
+                    total_count += count;
+                    for i in 0..count {
+                        let value = unsafe { buffer[i].assume_init() };
+                        println!("Read value: {}", value);
+                    }
+
+                    if total_count >= BATCH_SIZE {
+                        break;
+                    }
                 }
             }
         }
