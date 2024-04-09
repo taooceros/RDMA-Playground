@@ -533,6 +533,12 @@ impl<'a> IbResource<'a> {
 
             copy_nonoverlapping(message.as_ptr().cast(), buffer.as_mut_ptr(), buffer.len());
 
+            println!(
+                "Sending {} messages with size {}",
+                message.len(),
+                buffer.len()
+            );
+
             let ret = post_send(
                 self.qp,
                 self.mr.as_ref().unwrap().lkey,
@@ -633,8 +639,6 @@ impl<'a> IbResource<'a> {
             let buffer = &mut self.ib_buf[buf_offset..];
 
             let ret = post_srq_recv(self.srq, self.mr.as_ref().unwrap().lkey, 3, buffer);
-
-
 
             if ret != 0 {
                 panic!("Failed to post srq recv with error code {ret}");
