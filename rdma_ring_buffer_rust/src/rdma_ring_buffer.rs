@@ -87,19 +87,6 @@ impl<'a, T: Send + Copy + Sized, const N: usize, CM: CommunicationManager>
         let head = self.head.load_acquire();
         let tail = self.tail.load_acquire();
 
-        let messages = self
-            .communication_manager
-            .recv_message::<Message<T>>()
-            .unwrap();
-
-        for message in messages {
-            if let Message::Read(size) = message {
-                self.head.store_release(head + size);
-            } else {
-                panic!("Only One Writer should exists");
-            }
-        }
-
         let write_pos = tail % N;
 
         let avaliable_space = N - (tail - head);
@@ -119,14 +106,25 @@ impl<'a, T: Send + Copy + Sized, const N: usize, CM: CommunicationManager>
         let mut send_buffer = Vec::with_capacity(write_size);
 
         for i in 0..write_size {
-            send_buffer.push(Message::Write {
-                data: buffer[i],
-            });
+            send_buffer.push(Message::Write { data: buffer[i] });
         }
 
         self.communication_manager
             .send_message(&send_buffer)
             .unwrap();
+
+        let messages = self
+            .communication_manager
+            .recv_message::<Message<T>>()
+            .unwrap();
+
+        for message in messages {
+            if let Message::Read(size) = message {
+                self.head.store_release(head + size);
+            } else {
+                panic!("Only One Writer should exists");
+            }
+        }
 
         write_size
     }
