@@ -26,4 +26,4 @@ git-commit message="update":
 	git commit -am "{{message}}"
 	git push
 
-quick-server: git-commit server
+quick-server message="update": (git-commit message) && server
