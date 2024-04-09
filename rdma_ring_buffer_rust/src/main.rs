@@ -40,6 +40,8 @@ fn main() {
     let mut ring_buffer: RingBuffer<u32, 4096, _> =
         rdma_ring_buffer::RingBuffer::new_alloc(&mut ib_resource);
 
+    println!("Starting RDMA Ring Buffer Test");
+
     match connection_type {
         rdma_controller::config::ConnectionType::Client { .. } => {
             let mut buffer = [0; 8192];
@@ -47,6 +49,7 @@ fn main() {
             for i in 0..8192 {
                 buffer[i] = random();
             }
+
             ring_buffer.write(&mut buffer, 8192);
         }
         rdma_controller::config::ConnectionType::Server { .. } => {
