@@ -623,9 +623,9 @@ impl<'a> IbResource<'a> {
                             panic!("Receive failed");
                         }
 
-                        let len = 128;
+                        let len = wc.byte_len as usize / size_of::<M>();
 
-                        println!("Receive {} bytes", wc.byte_len);
+                        println!("Receive {} bytes", len);
 
                         return slice::from_raw_parts(buffer.as_ptr().cast(), len);
                     }

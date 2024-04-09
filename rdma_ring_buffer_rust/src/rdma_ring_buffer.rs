@@ -38,9 +38,6 @@ impl<'a, T: Send + Copy + Sized, const N: usize, CM: CommunicationManager>
     }
 
     pub fn read(&mut self, buffer: &mut [MaybeUninit<T>], count: usize) -> usize {
-        let head = self.head.load_acquire();
-        let tail = self.tail.load_acquire();
-
         let messages = self
             .communication_manager
             .recv_message::<Message<T>>()
@@ -52,6 +49,7 @@ impl<'a, T: Send + Copy + Sized, const N: usize, CM: CommunicationManager>
             println!("process {}-th message", i);
 
             if let Message::Write { data } = message {
+                let tail = self.tail.load_acquire();
                 let write_pos = tail % N;
                 self.buffer[write_pos] = MaybeUninit::new(*data);
                 self.tail.store_release(tail + 1);
@@ -60,6 +58,9 @@ impl<'a, T: Send + Copy + Sized, const N: usize, CM: CommunicationManager>
             }
         }
 
+        let head = self.head.load_acquire();
+        let tail = self.tail.load_acquire();
+
         let mut avaliable = tail - head;
 
         if count > 0 && avaliable > count {
@@ -67,6 +68,7 @@ impl<'a, T: Send + Copy + Sized, const N: usize, CM: CommunicationManager>
         }
 
         if avaliable == 0 {
+            println!("No data to read");
             return 0;
         }
 
@@ -79,6 +81,8 @@ impl<'a, T: Send + Copy + Sized, const N: usize, CM: CommunicationManager>
         }
 
         self.head.store_release(head + avaliable);
+
+        println!("Send Read Message: {}", avaliable);
 
         self.communication_manager
             .send_message(&[Message::Read::<T>(avaliable)])

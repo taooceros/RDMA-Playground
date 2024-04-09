@@ -52,6 +52,7 @@ fn main() {
 
             for i in 0..NUMBER_MESSAGE {
                 buffer[i] = random();
+                println!("Write value: {}", buffer[i]);
             }
 
             ring_buffer.write(&mut buffer, NUMBER_MESSAGE);
