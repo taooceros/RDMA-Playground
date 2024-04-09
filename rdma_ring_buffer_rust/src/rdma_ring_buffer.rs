@@ -1,35 +1,61 @@
+use core::panic;
 use std::{mem::MaybeUninit, ptr, sync::atomic::AtomicUsize};
 
-use crate::atomic_extension::AtomicExtension;
+use crate::{atomic_extension::AtomicExtension, communication_manager::CommunicationManager};
 
-pub struct RingBuffer<'a, T, const N: usize> {
+pub struct RingBuffer<'a, T, const N: usize, CM: CommunicationManager> {
     head: AtomicUsize,
     tail: AtomicUsize,
     buffer: &'a mut [MaybeUninit<T>; N],
+    communication_manager: &'a mut CM,
 }
 
-impl<'a, T: Send + Copy + Sized, const N: usize> RingBuffer<'a, T, N> {
-    pub fn new_alloc() -> RingBuffer<'static, T, N> {
+impl<'a, T: Send + Copy + Sized, const N: usize, CM: CommunicationManager>
+    RingBuffer<'a, T, N, CM>
+{
+    pub fn new_alloc(communication_manager: &'a mut CM) -> RingBuffer<'a, T, N, CM> {
         unsafe {
             RingBuffer {
                 head: AtomicUsize::new(0),
                 tail: AtomicUsize::new(0),
                 buffer: Box::leak(Box::new(MaybeUninit::uninit().assume_init())),
+                communication_manager: communication_manager,
             }
         }
     }
 
-    pub fn new(&mut self, buffer: &'a mut [MaybeUninit<T>; N]) -> RingBuffer<T, N> {
+    pub fn new(
+        &mut self,
+        buffer: &'a mut [MaybeUninit<T>; N],
+        communication_manager: &'a mut CM,
+    ) -> RingBuffer<T, N, CM> {
         RingBuffer {
             head: AtomicUsize::new(0),
             tail: AtomicUsize::new(0),
             buffer,
+            communication_manager,
         }
     }
 
     pub fn read(&mut self, buffer: &mut [MaybeUninit<T>], count: usize) -> usize {
         let head = self.head.load_acquire();
         let tail = self.tail.load_acquire();
+
+        if let Some(messages) = self
+            .communication_manager
+            .try_recv_message::<Message<T>>()
+            .unwrap()
+        {
+            for message in messages {
+                if let Message::Write { data } = message {
+                    let write_pos = tail % N;
+                    self.buffer[write_pos] = MaybeUninit::new(*data);
+                    self.tail.store_release(tail + 1);
+                } else {
+                    panic!("Only One Reader should exists");
+                }
+            }
+        }
 
         let mut avaliable = tail - head;
 
@@ -51,12 +77,30 @@ impl<'a, T: Send + Copy + Sized, const N: usize> RingBuffer<'a, T, N> {
 
         self.head.store_release(head + avaliable);
 
+        self.communication_manager
+            .send_message(&[Message::Read::<T>(avaliable)])
+            .unwrap();
+
         avaliable
     }
 
-    pub fn write(&mut self, buffer: &mut [T], mut write_size: usize) -> usize {
+    pub fn write(&mut self, buffer: &[T], mut write_size: usize) -> usize {
         let head = self.head.load_acquire();
         let tail = self.tail.load_acquire();
+
+        while let Some(messages) = self
+            .communication_manager
+            .try_recv_message::<Message<T>>()
+            .unwrap()
+        {
+            for message in messages {
+                if let Message::Read(size) = message {
+                    self.head.store_release(head + size);
+                } else {
+                    panic!("Only One Writer should exists");
+                }
+            }
+        }
 
         let write_pos = tail % N;
 
@@ -77,17 +121,22 @@ impl<'a, T: Send + Copy + Sized, const N: usize> RingBuffer<'a, T, N> {
         write_size
     }
 
-    pub fn read_avaliable(&self) -> usize {
+    pub fn avaliable_read(&self) -> usize {
         let head = self.head.load_acquire();
         let tail = self.tail.load_acquire();
 
         tail - head
     }
 
-    pub fn write_avaliable(&self) -> usize {
+    pub fn avaliable_write(&self) -> usize {
         let head = self.head.load_acquire();
         let tail = self.tail.load_acquire();
 
         N - (tail - head)
     }
+}
+
+pub enum Message<T> {
+    Read(usize),
+    Write { data: T },
 }

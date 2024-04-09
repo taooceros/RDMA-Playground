@@ -1,12 +1,15 @@
-use std::{net::IpAddr, str::FromStr};
+use std::{mem::MaybeUninit, net::IpAddr, str::FromStr};
 
 use clap::Parser;
+use rand::random;
 use rdma_controller::IbResource;
+use rdma_ring_buffer::RingBuffer;
 
 use crate::command_line::GlobalArgs;
 
 mod atomic_extension;
 mod command_line;
+mod communication_manager;
 mod rdma_controller;
 pub mod rdma_ring_buffer;
 
@@ -28,16 +31,35 @@ fn main() {
 
     let config = rdma_controller::config::Config {
         dev_name: args.dev,
-        connection_type,
+        connection_type: connection_type.clone(),
         gid_index: args.gid_index,
     };
 
-    match ib_resource.setup_ib(config) {
-        Ok(_) => {
-            println!("RDMA setup success");
+    ib_resource.setup_ib(config).unwrap();
+
+    let mut ring_buffer: RingBuffer<u32, 4096, _> =
+        rdma_ring_buffer::RingBuffer::new_alloc(&mut ib_resource);
+
+    match connection_type {
+        rdma_controller::config::ConnectionType::Client { .. } => {
+            let mut buffer = [0; 8192];
+
+            for i in 0..8192 {
+                buffer[i] = random();
+            }
+            ring_buffer.write(&mut buffer, 8192);
         }
-        Err(e) => {
-            println!("RDMA setup failed: {}", e);
+        rdma_controller::config::ConnectionType::Server { .. } => {
+            let mut buffer: [MaybeUninit<u32>; 8192] = [MaybeUninit::uninit(); 8192];
+            let mut total_count = 0;
+            loop {
+                let count = ring_buffer.read(&mut buffer, 8192);
+                total_count += count;
+                for i in 0..count {
+                    let value = unsafe { buffer[i].assume_init() };
+                    println!("Read value: {}", value);
+                }
+            }
         }
     }
 }
