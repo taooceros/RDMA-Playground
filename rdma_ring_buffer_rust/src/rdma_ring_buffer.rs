@@ -46,8 +46,6 @@ impl<'a, T: Send + Copy + Sized, const N: usize, CM: CommunicationManager>
         println!("Message length: {}", messages.len());
 
         for (i, message) in messages.iter().enumerate() {
-            println!("process {}-th message", i);
-
             if let Message::Write { data } = message {
                 let tail = self.tail.load_acquire();
                 let write_pos = tail % N;
