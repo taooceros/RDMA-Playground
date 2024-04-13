@@ -1,7 +1,8 @@
 server_ip := "192.168.2.1"
 port := "12873"
 
-executable := "rdma_ring_buffer_rust"
+adapter_executable := "rdma_adapter"
+host_executable := "rdma_host"
 
 alias s := server
 alias c := client
@@ -16,10 +17,18 @@ build: git_update
 	cargo build
 
 server: build
-	./target/debug/{{executable}} --port {{port}} -g 1
+	./target/debug/{{adapter_executable}} --port {{port}} -g 1 > adapter.log &
+	./target/debug/{{host_executable}} --port {{port}} -g 1 > host.log &
+
+client_adapter: build
+	./target/debug/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1
+
+client_host: build
+	./target/debug/{{host_executable}} -s {{server_ip}} --port {{port}} -g 1
 
 client: build
-	./target/debug/{{executable}} -s {{server_ip}} --port {{port}} -g 1
+	./target/debug/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1 > adapter.log &
+	./target/debug/{{host_executable}} -s {{server_ip}} --port {{port}} -g 1
 
 git-commit message="update":
 	git add .

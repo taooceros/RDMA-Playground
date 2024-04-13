@@ -1,12 +1,17 @@
 use std::{
     fs::File,
     io::{Read, Write},
-    mem::{size_of, MaybeUninit},
+    mem::{align_of, size_of, MaybeUninit},
+    slice,
+    sync::atomic::AtomicUsize,
 };
 
 use clap::Parser;
 use rand::random;
-use shared::ref_ring_buffer::RefRingBuffer;
+use shared::{
+    ipc::{ring_buffer_metadata::RingBufferMetaData, Ipc},
+    ref_ring_buffer::RefRingBuffer,
+};
 use shared_memory::ShmemConf;
 
 use crate::command_line::{ConnectionType, GlobalArgs};
@@ -26,31 +31,38 @@ fn main() {
         ConnectionType::Server
     };
 
-    let mut pipe = File::open("sync").unwrap();
+    println!("Start Opening IPC");
 
-    let mut buffer = [0; size_of::<usize>()];
+    let mut ipc = Ipc::open("sync");
 
-    pipe.read_exact(&mut buffer).unwrap();
+    println!("IPC Opened");
 
-    let ring_buffer_len = usize::from_le_bytes(buffer);
+    let metadata = RingBufferMetaData::read_from_ipc(&mut ipc);
 
-    let mut buffer = vec![0; size_of::<RefRingBuffer<u32>>()];
-
-    pipe.read_exact(&mut buffer).unwrap();
-
-    let shmem_os_id = std::str::from_utf8(&buffer).unwrap();
+    let shmem_os_id = std::str::from_utf8(&metadata.shared_memory_name).unwrap();
 
     let shmem = ShmemConf::new().os_id(shmem_os_id).open().unwrap();
 
-    pipe.write(&1u8.to_le_bytes()).unwrap();
+    println!("Shared Memory ID: {}", shmem.get_os_id());
 
-    // let mut ring_buffer: RingBuffer<u32, 4096, _> =
-    //     RingBuffer::new_alloc(&mut ib_resource);
+    let shmem_ptr = shmem.as_ptr();
+
+    let head_ref = unsafe { AtomicUsize::from_ptr(shmem_ptr.cast()) };
+    let tail_ref = unsafe { AtomicUsize::from_ptr(shmem_ptr.add(size_of::<usize>()).cast()) };
+
+    let mut ring_buffer = RefRingBuffer::<u8>::from_raw_parts(head_ref, tail_ref, unsafe {
+        slice::from_raw_parts_mut(
+            shmem_ptr.add(size_of::<usize>() * 2).cast(),
+            metadata.ring_buffer_len,
+        )
+    });
 
     println!("Starting RDMA Ring Buffer Test");
 
     const BATCH_SIZE: usize = 64;
     const MAX_ITER: usize = 64;
+
+    const DATA_SIZE: usize = BATCH_SIZE * MAX_ITER;
 
     match connection_type {
         ConnectionType::Client => {
@@ -64,27 +76,23 @@ fn main() {
                     println!("Write value: {}", buffer[i]);
                 }
 
-                // ring_buffer.write(&mut buffer, BATCH_SIZE);
+                ring_buffer.write(&mut buffer);
             }
         }
         ConnectionType::Server => {
-            for i in 0..MAX_ITER {
+            let mut readed_data = 0;
+
+            for i in 0.. {
                 println!("iter: {}", i);
 
-                let buffer: [MaybeUninit<u32>; BATCH_SIZE] =
-                    [MaybeUninit::uninit(); BATCH_SIZE];
-                let total_count = 0;
-                loop {
-                    // let count = ring_buffer.read(&mut buffer, BATCH_SIZE);
-                    // total_count += count;
-                    // for i in 0..count {
-                    //     let value = unsafe { buffer[i].assume_init() };
-                    //     println!("Read value: {}", value);
-                    // }
+                let data = ring_buffer.read();
+                readed_data += data.len();
+                for item in data {
+                    println!("Read value: {}", item);
+                }
 
-                    // if total_count >= BATCH_SIZE {
-                    //     break;
-                    // }
+                if readed_data >= DATA_SIZE {
+                    break;
                 }
             }
         }

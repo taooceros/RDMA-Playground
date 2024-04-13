@@ -75,18 +75,19 @@ impl IbResource {
             port_attr: MaybeUninit::zeroed(),
             dev_attr: MaybeUninit::zeroed(),
             ib_buf: buffer,
-            buffer_len: buffer_len,
+            buffer_len,
             offset: 0,
             state: State::Init,
         }
     }
 
-    pub fn allocate_buffer<E>(&mut self) -> &mut MaybeUninit<E> {
+    pub fn allocate_buffer<E>(&mut self) -> *mut MaybeUninit<E> {
         unsafe {
-            let len = align_of::<E>();
-            let buffer = self.ib_buf as *mut u8;
+            let len = size_of::<E>();
+            println!("allocate_buffer: len: {}", len);
+            let buffer = self.ib_buf.add(self.offset) as *mut u8;
             self.offset += len;
-            buffer.cast::<MaybeUninit<E>>().as_mut().unwrap()
+            buffer.cast::<MaybeUninit<E>>()
         }
     }
 

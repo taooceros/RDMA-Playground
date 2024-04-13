@@ -1,8 +1,9 @@
 use std::io::Write;
 
+#[derive(Debug)]
 pub struct RingBufferMetaData {
     pub ring_buffer_len: usize,
-    pub shared_memory_name: Box<[u8]>,
+    pub shared_memory_name: Vec<u8>,
 }
 
 impl RingBufferMetaData {
@@ -21,12 +22,12 @@ impl RingBufferMetaData {
         reader.read_exact(&mut ring_buffer_len_bytes).unwrap();
         let ring_buffer_len = usize::from_le_bytes(ring_buffer_len_bytes);
 
-        let mut shared_memory_name = vec![0u8; 32];
-        reader.read_exact(&mut shared_memory_name).unwrap();
+        let mut shared_memory_name = [0u8; 256];
+        let len = reader.read(&mut shared_memory_name).unwrap();
 
         Box::new(RingBufferMetaData {
             ring_buffer_len,
-            shared_memory_name: shared_memory_name.into_boxed_slice(),
+            shared_memory_name: shared_memory_name[..len].to_owned(),
         })
     }
 }
