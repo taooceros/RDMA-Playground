@@ -1,2 +1,3 @@
 [workspace]
-members = ["adapter", "host"]
+members = ["adapter", "host", "shared"]
+resolver = "2"

@@ -14,3 +14,8 @@ pub struct GlobalArgs {
     #[arg(short, long)]
     pub port: Option<u16>,
 }
+
+pub enum ConnectionType {
+    Client,
+    Server,
+}

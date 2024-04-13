@@ -4,7 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+bytemuck = "1.15.0"
 clap = { version = "4.5.4", features = ["derive"] }
 derivative = "2.2.0"
+nix = "0.28.0"
 rand = "0.8.5"
 rdma-sys = "0.3.0"
+shared_memory = "0.12.4"
+shared = {path = "../shared"}
