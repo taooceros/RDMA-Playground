@@ -1,14 +1,11 @@
 use std::{
-    ffi::CString,
-    fs::File,
     io::{Read, Write},
-    mem::size_of_val,
     net::IpAddr,
     str::FromStr,
 };
 
 use clap::Parser;
-use nix::libc::mkfifo;
+
 use shared::{ipc::{self, ring_buffer_metadata::RingBufferMetaData}, ring_buffer::RingBuffer};
 use shared_memory::ShmemConf;
 

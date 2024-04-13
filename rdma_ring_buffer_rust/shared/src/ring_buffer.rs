@@ -1,7 +1,6 @@
-use core::panic;
+
 use std::{
-    mem::{transmute, MaybeUninit},
-    ptr,
+    mem::{MaybeUninit},
     sync::atomic::AtomicUsize,
 };
 

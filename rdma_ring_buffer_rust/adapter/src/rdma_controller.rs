@@ -2,18 +2,15 @@ use core::panic;
 use rand::random;
 use rdma_sys::{ibv_qp_state::IBV_QPS_INIT, *};
 use std::{
-    array,
     error::Error,
-    ffi::{CStr, CString},
+    ffi::{CStr},
     fmt::Display,
     io::{Read, Write},
     mem::{align_of, size_of, transmute, zeroed, MaybeUninit},
     net::{IpAddr, SocketAddr, TcpListener},
     num::NonZeroI32,
-    ptr::{copy_nonoverlapping, null, null_mut, slice_from_raw_parts, slice_from_raw_parts_mut},
+    ptr::{copy_nonoverlapping, null_mut, slice_from_raw_parts, slice_from_raw_parts_mut},
     slice,
-    thread::sleep,
-    time::Duration,
 };
 
 use self::{

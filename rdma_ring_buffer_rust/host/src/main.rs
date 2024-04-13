@@ -2,9 +2,6 @@ use std::{
     fs::File,
     io::{Read, Write},
     mem::{size_of, MaybeUninit},
-    net::IpAddr,
-    str::FromStr,
-    sync::atomic::AtomicUsize,
 };
 
 use clap::Parser;
@@ -74,9 +71,9 @@ fn main() {
             for i in 0..MAX_ITER {
                 println!("iter: {}", i);
 
-                let mut buffer: [MaybeUninit<u32>; BATCH_SIZE] =
+                let buffer: [MaybeUninit<u32>; BATCH_SIZE] =
                     [MaybeUninit::uninit(); BATCH_SIZE];
-                let mut total_count = 0;
+                let total_count = 0;
                 loop {
                     // let count = ring_buffer.read(&mut buffer, BATCH_SIZE);
                     // total_count += count;

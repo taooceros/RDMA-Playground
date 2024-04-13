@@ -1,6 +1,5 @@
 use std::{
     mem::{transmute, MaybeUninit},
-    ptr,
     sync::atomic::AtomicUsize,
 };
 
