@@ -83,8 +83,6 @@ fn main() {
             let mut readed_data = 0;
 
             for i in 0.. {
-                println!("iter: {}", i);
-
                 let data = ring_buffer.read();
                 readed_data += data.len();
                 for item in data {
