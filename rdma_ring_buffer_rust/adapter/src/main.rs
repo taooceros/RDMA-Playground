@@ -76,17 +76,17 @@ pub fn main() {
 
     match connection_type {
         rdma_controller::config::ConnectionType::Server { .. } => loop {
-            let reader = ring_buffer.read();
-
-            if reader.len() > 0 {
-                ib_resource.send_message(reader.as_slice());
-            }
-        },
-        rdma_controller::config::ConnectionType::Client { .. } => loop {
             let messages: &[u8] = ib_resource.recv_message();
 
             if messages.len() > 0 {
                 ring_buffer.write(messages);
+            }
+        },
+        rdma_controller::config::ConnectionType::Client { .. } => loop {
+            let reader = ring_buffer.read();
+
+            if reader.len() > 0 {
+                ib_resource.send_message(reader.as_slice());
             }
         },
     }
