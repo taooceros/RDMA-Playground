@@ -20,8 +20,6 @@ mod atomic_extension;
 mod command_line;
 mod communication_manager;
 
-mod rdma_adapter;
-
 fn main() {
     let args = GlobalArgs::parse();
 
