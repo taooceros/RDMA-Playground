@@ -38,5 +38,5 @@ git-commit message="update":
 quick-server message="update": (git-commit message) && server
 
 kill:
-	killall {{adapter_executable}}
-	killall {{host_executable}}
+	killall {{adapter_executable}} || true
+	killall {{host_executable}} || true
