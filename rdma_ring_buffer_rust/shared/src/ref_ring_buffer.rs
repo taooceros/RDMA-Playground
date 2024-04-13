@@ -32,8 +32,6 @@ impl<'a, T: Send + Copy> RefRingBuffer<'a, T> {
         let mut avaliable = tail - head;
 
         avaliable = avaliable.min(buffer_size - (head % buffer_size));
-
-        println!("head{}, tail{} avaliable {}", head, tail, avaliable);
         // SAFETY: acquire load for tail will ensure that the data is written before this line
         RingBufferReader {
             ring_buffer: self,
