@@ -3,7 +3,7 @@ use rand::random;
 use rdma_sys::{ibv_qp_state::IBV_QPS_INIT, *};
 use std::{
     error::Error,
-    ffi::{CStr},
+    ffi::CStr,
     fmt::Display,
     io::{Read, Write},
     mem::{align_of, size_of, transmute, zeroed, MaybeUninit},
@@ -497,8 +497,6 @@ impl IbResource {
 
             let buffer = self.get_mut_slice();
 
-            
-
             buffer[0] = random();
 
             let ret = post_send(qp, lkey, HANDSHAKE_WR_ID, buffer);
@@ -541,7 +539,7 @@ impl IbResource {
 
                     if wc.wr_id == HANDSHAKE_WR_ID && wc.opcode == ibv_wc_opcode::IBV_WC_RECV {
                         if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
-                            panic!("Handshake failed");
+                            panic!("Handshake failed with status {}", wc.status);
                         }
 
                         println!("Receive successful with data: {}", buffer[offset]);
