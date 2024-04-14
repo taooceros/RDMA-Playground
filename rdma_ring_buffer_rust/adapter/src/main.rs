@@ -93,4 +93,6 @@ pub fn main() {
             }
         },
     }
+
+    println!("Finish testing");
 }
