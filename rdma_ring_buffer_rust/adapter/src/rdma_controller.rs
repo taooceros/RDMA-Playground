@@ -495,7 +495,7 @@ impl IbResource {
             let srq = self.srq;
             let cq = self.cq;
 
-            let buffer = self.get_mut_slice();
+            let buffer = &mut self.get_mut_slice()[0..1];
 
             buffer[0] = random();
 
