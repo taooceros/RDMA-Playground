@@ -94,4 +94,6 @@ fn main() {
             }
         }
     }
+
+    println!("Finished RDMA Ring Buffer Test");
 }
