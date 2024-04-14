@@ -59,7 +59,7 @@ fn main() {
 
     println!("Starting RDMA Ring Buffer Test");
 
-    const BATCH_SIZE: usize = 2048;
+    const BATCH_SIZE: usize = 1024;
     const MAX_ITER: usize = 128;
 
     const DATA_SIZE: usize = BATCH_SIZE * MAX_ITER;
