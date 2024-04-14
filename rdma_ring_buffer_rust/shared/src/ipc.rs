@@ -31,9 +31,15 @@ impl Ipc {
         }
     }
 
-    pub fn open(name: &str) -> Ipc {
+    pub fn open(path: impl AsRef<Path>) -> Ipc {
+        let path = path.as_ref();
+
+        while !path.exists() {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+
         Ipc {
-            pipe: OpenOptions::new().read(true).open(name).unwrap(),
+            pipe: OpenOptions::new().read(true).open(path).unwrap(),
         }
     }
 }
