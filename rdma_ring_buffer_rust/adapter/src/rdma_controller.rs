@@ -497,6 +497,8 @@ impl IbResource {
 
             let buffer = self.get_mut_slice();
 
+            
+
             buffer[0] = random();
 
             let ret = post_send(qp, lkey, HANDSHAKE_WR_ID, buffer);

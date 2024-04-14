@@ -49,6 +49,7 @@ pub fn main() {
     ring_buffer.write(RingBuffer::<u8, RINGBUFFER_LEN>::new());
 
     let ring_buffer = unsafe { ring_buffer.assume_init_mut() };
+    assert_eq!(ib_resource.setup_ib(config).unwrap(), 0);
 
     println!("RingBuffer: {:p}", ring_buffer);
     println!("RingBuffer: {:p}", &ring_buffer.head);
@@ -71,8 +72,6 @@ pub fn main() {
     println!("Metadata: {:?}", init_metadata);
 
     init_metadata.write_to_ipc(&mut ipc);
-
-    assert_eq!(ib_resource.setup_ib(config).unwrap(), 0);
 
     match connection_type {
         rdma_controller::config::ConnectionType::Server { .. } => loop {

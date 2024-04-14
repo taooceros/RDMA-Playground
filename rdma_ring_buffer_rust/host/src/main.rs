@@ -37,6 +37,8 @@ fn main() {
 
     let metadata = RingBufferMetaData::read_from_ipc(&mut ipc);
 
+    println!("Ring Buffer Metadata: {:?}", metadata);
+
     let shmem_os_id = std::str::from_utf8(&metadata.shared_memory_name).unwrap();
 
     let shmem = ShmemConf::new().os_id(shmem_os_id).open().unwrap();
@@ -65,13 +67,12 @@ fn main() {
     match connection_type {
         ConnectionType::Client => {
             for i in 0..MAX_ITER {
-                println!("iter: {}", i);
 
                 let mut buffer = [0; BATCH_SIZE];
 
                 for i in 0..BATCH_SIZE {
                     buffer[i] = random();
-                    println!("Write value: {}", buffer[i]);
+                    // println!("Write value: {}", buffer[i]);
                 }
 
                 ring_buffer.write(&mut buffer);
@@ -84,7 +85,7 @@ fn main() {
                 let data = ring_buffer.read();
                 readed_data += data.len();
                 for item in data {
-                    println!("Read value: {}", item);
+                    // println!("Read value: {}", item);
                 }
 
                 if readed_data >= DATA_SIZE {
