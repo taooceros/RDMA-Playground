@@ -549,7 +549,7 @@ impl IbResource {
 
                     if wc.wr_id == HANDSHAKE_WR_ID && wc.opcode == ibv_wc_opcode::IBV_WC_SEND {
                         if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
-                            panic!("Handshake failed");
+                            panic!("Handshake failed with status {}", wc.status);
                         }
 
                         println!("Send successful");
