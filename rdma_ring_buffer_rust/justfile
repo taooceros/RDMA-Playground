@@ -34,7 +34,7 @@ client_host: build
 
 client: build kill
 	./target/debug/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1 > adapter.log &
-	./target/debug/{{host_executable}} -s {{server_ip}} --port {{port}} -g 1 &
+	./target/debug/{{host_executable}} -s {{server_ip}} --port {{port}} -g 1 > host.log &
 
 git-commit message="update":
 	git add .
