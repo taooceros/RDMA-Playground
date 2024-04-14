@@ -509,6 +509,8 @@ impl IbResource {
 
             let offset = buffer.len() / 2;
 
+            println!("Offset: {}", offset);
+
             let ret = post_srq_recv(srq, lkey, HANDSHAKE_WR_ID, &mut buffer[offset..offset + 1]);
 
             if ret != 0 {
