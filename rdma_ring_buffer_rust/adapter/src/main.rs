@@ -35,6 +35,8 @@ pub fn main() {
 
     let shmem = ShmemConf::new().size(8192).create().unwrap();
 
+    println!("shared memory size {}", shmem.len());
+
     let mut ib_resource = rdma_controller::IbResource::new_with_buffer(shmem.as_ptr(), shmem.len());
 
     let config = rdma_controller::config::Config {
@@ -49,6 +51,8 @@ pub fn main() {
     ring_buffer.write(RingBuffer::<u8, RINGBUFFER_LEN>::new());
 
     let ring_buffer = unsafe { ring_buffer.assume_init_mut() };
+
+    
     assert_eq!(ib_resource.setup_ib(config).unwrap(), 0);
 
     println!("RingBuffer: {:p}", ring_buffer);

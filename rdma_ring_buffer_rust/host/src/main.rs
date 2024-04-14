@@ -72,7 +72,7 @@ fn main() {
 
                 for i in 0..BATCH_SIZE {
                     buffer[i] = random();
-                    // println!("Write value: {}", buffer[i]);
+                    println!("Write value: {}", buffer[i]);
                 }
 
                 ring_buffer.write(&mut buffer);
@@ -85,7 +85,7 @@ fn main() {
                 let data = ring_buffer.read();
                 readed_data += data.len();
                 for item in data {
-                    // println!("Read value: {}", item);
+                    println!("Read value: {}", item);
                 }
 
                 if readed_data >= DATA_SIZE {

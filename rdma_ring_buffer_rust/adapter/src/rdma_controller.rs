@@ -143,7 +143,7 @@ impl IbResource {
             /* occupies the second half */
             //
 
-            // println!("ib_buf.len(): {}", self.ib_buf.len());
+            println!("ib_buf.len(): {}", self.buffer_len);
 
             self.mr = ibv_reg_mr(
                 self.pd,
