@@ -1,6 +1,6 @@
 use std::{
     io::{Read, Write},
-    mem::{size_of, transmute, MaybeUninit},
+    mem::transmute,
     net::IpAddr,
     str::FromStr,
 };
@@ -32,30 +32,27 @@ pub fn main() {
             port: args.port.unwrap(),
         }
     };
-    const RINGBUFFER_LEN: usize = 2048;
 
-    let shmem = ShmemConf::new()
-        .size(size_of::<RingBuffer<u8, RINGBUFFER_LEN>>())
-        .create()
-        .unwrap();
+    let shmem = ShmemConf::new().size(8192).create().unwrap();
 
     println!("shared memory size {}", shmem.len());
 
-    let mut ib_resource = rdma_controller::IbResource::new(8192);
+    let mut ib_resource = rdma_controller::IbResource::new_with_buffer(shmem.as_ptr(), shmem.len());
 
     let config = rdma_controller::config::Config {
         dev_name: args.dev,
         connection_type: connection_type.clone(),
         gid_index: args.gid_index,
     };
+    const RINGBUFFER_LEN: usize = 2048;
 
-    let ring_buffer = shmem.as_ptr() as *mut RingBuffer<u8, RINGBUFFER_LEN>;
-    unsafe {
-        ring_buffer.write(RingBuffer::<u8, RINGBUFFER_LEN>::new());
-    }
+    let ring_buffer = unsafe { ib_resource.allocate_buffer().as_mut().unwrap() };
 
-    let ring_buffer = unsafe { &mut *ring_buffer };
+    ring_buffer.write(RingBuffer::<u8, RINGBUFFER_LEN>::new());
 
+    let ring_buffer = unsafe { ring_buffer.assume_init_mut() };
+
+    
     assert_eq!(ib_resource.setup_ib(config).unwrap(), 0);
 
     println!("RingBuffer: {:p}", ring_buffer);
