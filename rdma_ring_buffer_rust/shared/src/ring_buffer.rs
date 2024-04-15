@@ -6,6 +6,7 @@ use std::{
 
 use crate::{atomic_extension::AtomicExtension, ref_ring_buffer::RefRingBuffer};
 
+#[repr(C)]
 pub struct RingBuffer<T, const N: usize> {
     pub head: AtomicUsize,
     pub tail: AtomicUsize,
