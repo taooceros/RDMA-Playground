@@ -9,15 +9,15 @@ use clap::Parser;
 
 use shared::{
     ipc::{self, ring_buffer_metadata::RingBufferMetaData},
+    rdma_controller,
     ring_buffer::RingBuffer,
 };
 use shared_memory::ShmemConf;
 
-use crate::{command_line::GlobalArgs, rdma_controller::IbResource};
+use crate::command_line::GlobalArgs;
 
 mod atomic_extension;
 mod command_line;
-mod rdma_controller;
 
 pub fn main() {
     let args = GlobalArgs::parse();
@@ -52,7 +52,6 @@ pub fn main() {
 
     let ring_buffer = unsafe { ring_buffer.assume_init_mut() };
 
-    
     assert_eq!(ib_resource.setup_ib(config).unwrap(), 0);
 
     println!("RingBuffer: {:p}", ring_buffer);
