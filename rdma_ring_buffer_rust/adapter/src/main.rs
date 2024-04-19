@@ -45,6 +45,8 @@ pub fn main() {
 
     ib_resource.setup_ib(config).unwrap();
 
+    println!("IB setup done");
+
     const RINGBUFFER_LEN: usize = 2048;
 
     let mut shmem = ShmemConf::new()
