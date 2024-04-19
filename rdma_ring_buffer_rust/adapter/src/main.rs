@@ -136,6 +136,8 @@ pub fn main() {
         rdma_controller::config::ConnectionType::Client { .. } => loop {
             let reader = ring_buffer.read();
 
+            println!("read length {}", reader.len());
+
             if reader.len() > 0 {
                 unsafe {
                     ib_resource
