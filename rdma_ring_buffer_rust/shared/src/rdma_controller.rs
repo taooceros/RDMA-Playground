@@ -563,8 +563,13 @@ impl IbResource {
             let mut bad_recv_wr = null_mut();
 
             let lkey = mr.mr.as_ref().unwrap().lkey;
-
             let mut pointer = buffer.as_bytes_out();
+
+            println!(
+                "recv in {:p} with length {}",
+                pointer.as_ptr(),
+                pointer.len()
+            );
 
             let mut list = ibv_sge {
                 addr: pointer.as_mut_ptr() as *mut u8 as u64,

@@ -104,7 +104,11 @@ pub fn main() {
                 let mut buffer = ring_buffer.alloc_write(batch_size);
 
                 eprintln!("addr {:p}", shmem.as_ptr());
-                eprintln!("buffer {:?}", buffer.deref_mut());
+                eprintln!(
+                    "buffer {:?} with length {}",
+                    buffer.deref(),
+                    buffer.deref().len()
+                );
 
                 ib_resource
                     .post_srq_recv(2, &mut mr, Out::<'_, [u8]>::from(buffer.deref_mut()))
