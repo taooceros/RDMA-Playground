@@ -105,7 +105,7 @@ pub fn main() {
 
                 eprintln!("addr {:p}", shmem.as_ptr());
                 eprintln!(
-                    "buffer {:?} with length {}",
+                    "buffer {:p} with length {}",
                     buffer.deref(),
                     buffer.deref().len()
                 );
