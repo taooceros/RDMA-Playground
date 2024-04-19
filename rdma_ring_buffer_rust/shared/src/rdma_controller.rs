@@ -403,6 +403,8 @@ impl IbResource {
 
             self.handshake();
 
+            println!("Connected to dest");
+
             Ok(())
         }
     }
