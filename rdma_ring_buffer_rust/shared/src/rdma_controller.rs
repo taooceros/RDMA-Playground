@@ -543,7 +543,7 @@ impl IbResource {
         }
     }
 
-    pub unsafe fn post_recv<'a, T: FromBytes>(
+    pub unsafe fn post_srq_recv<'a, T: FromBytes>(
         &mut self,
         wr_id: u64,
         mr: &mut MemoryRegion,
