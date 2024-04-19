@@ -498,6 +498,10 @@ impl IbResource {
                 panic!("Failed to poll cq");
             }
 
+            if num_polled == 0 {
+                return vec![];
+            }
+
             println!("Polled {} wc", num_polled);
 
             wc_buffer[..num_polled as usize]
