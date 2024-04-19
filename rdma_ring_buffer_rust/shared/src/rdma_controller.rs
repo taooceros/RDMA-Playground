@@ -438,7 +438,7 @@ impl IbResource {
                             println!("Sent data: {:?}", buffer[0]);
                         }
 
-                        if count == 2 {
+                        if count >= 2 {
                             return;
                         }
                     }
