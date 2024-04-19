@@ -110,7 +110,11 @@ pub fn main() {
                 'outer: loop {
                     for wc in ib_resource.poll_cq() {
                         if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
-                            panic!("Request failed");
+                            panic!(
+                                "wc status {}, last error {}",
+                                wc.status,
+                                std::io::Error::last_os_error()
+                            );
                         }
 
                         if wc.opcode == rdma_sys::ibv_wc_opcode::IBV_WC_RECV {
