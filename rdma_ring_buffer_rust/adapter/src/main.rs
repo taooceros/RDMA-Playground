@@ -43,6 +43,8 @@ pub fn main() {
         gid_index: args.gid_index,
     };
 
+    assert_eq!(ib_resource.setup_ib(config).unwrap(), 0);
+
     const RINGBUFFER_LEN: usize = 2048;
 
     let mut shmem = ShmemConf::new()
@@ -69,8 +71,6 @@ pub fn main() {
 
         uninit.assume_init_mut()
     };
-
-    assert_eq!(ib_resource.setup_ib(config).unwrap(), 0);
 
     println!("RingBuffer: {:p}", ring_buffer);
     println!("RingBuffer: {:p}", &ring_buffer.head);
