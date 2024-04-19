@@ -131,8 +131,6 @@ pub fn main() {
                     }
                 }
             }
-
-            break;
         },
         rdma_controller::config::ConnectionType::Client { message_size, .. } => loop {
             if let Some(reader) = ring_buffer.read_exact(message_size) {
