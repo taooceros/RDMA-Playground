@@ -102,7 +102,7 @@ pub fn main() {
                 let mut buffer = ring_buffer.alloc_write(batch_size);
 
                 ib_resource
-                    .post_recv(2, &mut mr, Out::<'_, [u8]>::from(buffer.deref_mut()))
+                    .post_srq_recv(2, &mut mr, Out::<'_, [u8]>::from(buffer.deref_mut()))
                     .expect("Failed to post recv");
 
                 'outer: loop {
