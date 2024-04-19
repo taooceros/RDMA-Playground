@@ -49,7 +49,7 @@ impl IbResource {
             eprintln!(
                 "Registering memory region address: {:p} with length: {}",
                 buffer.as_ptr(),
-                buffer.len()
+                buffer.len() * std::mem::size_of::<T>()
             );
 
             let mr = ibv_reg_mr(
