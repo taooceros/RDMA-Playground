@@ -421,7 +421,7 @@ impl IbResource {
             self.post_send(HANDSHAKE_WR_ID, &mut mr, &mut buffer[0..1])
                 .expect("Failed to post send on Handshake");
 
-            self.post_recv(HANDSHAKE_WR_ID, &mut mr, Out::from(&mut buffer[1..2]))
+            self.post_srq_recv(HANDSHAKE_WR_ID, &mut mr, Out::from(&mut buffer[1..2]))
                 .expect("Failed to post recv on Handshake");
 
             let mut count = 0;
@@ -543,20 +543,22 @@ impl IbResource {
         }
     }
 
-    pub unsafe fn post_srq_recv<'a, T: NoUninit>(
+    pub unsafe fn post_recv<'a, T: FromBytes>(
         &mut self,
         wr_id: u64,
         mr: &mut MemoryRegion,
-        buffer: &'a mut MaybeUninit<T>,
-    ) -> io::Result<&'a mut T> {
+        buffer: Out<'a, [T]>,
+    ) -> io::Result<()> {
         unsafe {
             let mut bad_recv_wr = null_mut();
 
             let lkey = mr.mr.as_ref().unwrap().lkey;
 
+            let mut pointer = buffer.as_bytes_out();
+
             let mut list = ibv_sge {
-                addr: buffer.as_mut_ptr() as u64,
-                length: size_of_val(buffer) as u32,
+                addr: pointer.as_mut_ptr() as *mut u8 as u64,
+                length: pointer.len().try_into().unwrap(),
                 lkey,
             };
 
@@ -573,7 +575,7 @@ impl IbResource {
                 return Err(io::Error::last_os_error());
             }
 
-            return Ok(buffer.assume_init_mut());
+            return Ok(());
         }
     }
 }
