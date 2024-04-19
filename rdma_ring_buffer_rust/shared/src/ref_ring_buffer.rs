@@ -1,11 +1,13 @@
 use core::panic;
 use std::{
-    mem::{transmute, MaybeUninit},
+    mem::MaybeUninit,
     ptr,
     sync::{atomic::AtomicUsize, Mutex},
 };
 
 use crate::atomic_extension::AtomicExtension;
+
+use self::writer::RingBufferWriter;
 
 pub struct RefRingBuffer<'a, T> {
     head: &'a AtomicUsize,
@@ -24,7 +26,7 @@ impl<'a, T: Send + Copy> RefRingBuffer<'a, T> {
 
     // The reader will only return continuous memory slice regardless of the buffer is wrapped around
     // This ensure that RingBufferReader can be converted into slice
-    pub fn read(&mut self) -> RingBufferReader<T> {
+    pub fn read(&mut self) -> reader::RingBufferReader<T> {
         let head = self.head.load_acquire();
         let tail = self.tail.load_acquire();
         let buffer_size = self.buffer.len();
@@ -33,7 +35,7 @@ impl<'a, T: Send + Copy> RefRingBuffer<'a, T> {
 
         avaliable = avaliable.min(buffer_size - (head % buffer_size));
         // SAFETY: acquire load for tail will ensure that the data is written before this line
-        RingBufferReader {
+        reader::RingBufferReader {
             ring_buffer: self,
             offset: head,
             limit: head + avaliable,
@@ -87,56 +89,38 @@ impl<'a, T: Send + Copy> RefRingBuffer<'a, T> {
 
         write_len
     }
-}
 
-pub struct RingBufferReader<'a, T> {
-    ring_buffer: &'a RefRingBuffer<'a, T>,
-    offset: usize,
-    limit: usize,
-}
+    // This writer will only return continuous memory slice regardless of the buffer is wrapped around
+    pub fn alloc_write<'b>(&'a mut self, len: usize) -> RingBufferWriter<'b, 'a, T>
+    where
+        'a: 'b,
+    {
+        let head = self.head.load_acquire();
+        let tail = self.tail.load_acquire();
 
-impl<'a, T> Iterator for RingBufferReader<'a, T> {
-    type Item = &'a T;
+        let buffer_size = self.buffer.len();
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.offset < self.limit {
-            let item = unsafe {
-                self.ring_buffer.buffer[self.offset % self.ring_buffer.buffer.len()]
-                    .assume_init_ref()
-            };
-            self.offset += 1;
-            Some(item)
+        let mut avaliable = buffer_size - (tail - head);
+
+        let to_end = buffer_size - (tail % buffer_size);
+
+        avaliable = if avaliable > to_end {
+            to_end
         } else {
-            None
+            avaliable
+        };
+
+        let write_len = len.min(avaliable);
+
+        let start = tail % buffer_size;
+        RingBufferWriter {
+            ring_buffer: self,
+            offset: start,
+            limit: write_len,
         }
     }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.limit - self.offset, Some(self.limit - self.offset))
-    }
 }
 
-impl<'a, T> RingBufferReader<'a, T> {
-    pub fn as_slice(&self) -> &'a [T] {
-        let buffer_size = self.ring_buffer.buffer.len();
-        let start = self.offset % buffer_size;
-        let end = self.limit % buffer_size;
-        if start < end {
-            unsafe { transmute(&self.ring_buffer.buffer[start..end]) }
-        } else {
-            unsafe { transmute(&self.ring_buffer.buffer[start..buffer_size]) }
-        }
-    }
+mod reader;
 
-    pub fn len(&self) -> usize {
-        self.limit - self.offset
-    }
-}
-
-impl<T> Drop for RingBufferReader<'_, T> {
-    fn drop(&mut self) {
-        self.ring_buffer
-            .head
-            .store(self.limit, std::sync::atomic::Ordering::Release);
-    }
-}
+mod writer;

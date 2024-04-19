@@ -1,6 +1,6 @@
-
 use std::{
-    mem::{MaybeUninit},
+    mem::MaybeUninit,
+    ops::{Deref, DerefMut},
     sync::atomic::AtomicUsize,
 };
 
@@ -12,6 +12,7 @@ pub struct RingBuffer<T, const N: usize> {
     pub tail: AtomicUsize,
     pub buffer: [MaybeUninit<T>; N],
 }
+
 
 impl<T: Send + Copy, const N: usize> RingBuffer<T, N> {
     pub fn new() -> Self {

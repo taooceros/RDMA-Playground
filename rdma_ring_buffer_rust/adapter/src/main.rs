@@ -1,7 +1,8 @@
 use std::{
     io::{Read, Write},
-    mem::transmute,
+    mem::{size_of, transmute, MaybeUninit},
     net::IpAddr,
+    ops::{Deref, DerefMut},
     str::FromStr,
 };
 
@@ -13,6 +14,7 @@ use shared::{
     ring_buffer::RingBuffer,
 };
 use shared_memory::ShmemConf;
+use uninit::out_ref::Out;
 
 use crate::command_line::GlobalArgs;
 
@@ -33,24 +35,40 @@ pub fn main() {
         }
     };
 
-    let shmem = ShmemConf::new().size(8192).create().unwrap();
-
-    println!("shared memory size {}", shmem.len());
-
-    let mut ib_resource = rdma_controller::IbResource::new_with_buffer(shmem.as_ptr(), shmem.len());
+    let mut ib_resource = rdma_controller::IbResource::new();
 
     let config = rdma_controller::config::Config {
         dev_name: args.dev,
         connection_type: connection_type.clone(),
         gid_index: args.gid_index,
     };
+
     const RINGBUFFER_LEN: usize = 2048;
 
-    let ring_buffer = unsafe { ib_resource.allocate_buffer().as_mut().unwrap() };
+    let mut shmem = ShmemConf::new()
+        .size(size_of::<RingBuffer<u8, RINGBUFFER_LEN>>())
+        .create()
+        .unwrap();
 
-    ring_buffer.write(RingBuffer::<u8, RINGBUFFER_LEN>::new());
+    println!("shared memory size {}", shmem.len());
 
-    let ring_buffer = unsafe { ring_buffer.assume_init_mut() };
+    let mut mr = unsafe {
+        ib_resource
+            .register_memory_region(shmem.as_slice_mut())
+            .unwrap()
+    };
+
+    let ring_buffer = unsafe {
+        let uninit = shmem
+            .as_ptr()
+            .cast::<MaybeUninit<RingBuffer<u8, RINGBUFFER_LEN>>>()
+            .as_mut()
+            .unwrap();
+
+        uninit.write(RingBuffer::new());
+
+        uninit.assume_init_mut()
+    };
 
     assert_eq!(ib_resource.setup_ib(config).unwrap(), 0);
 
@@ -76,19 +94,51 @@ pub fn main() {
 
     init_metadata.write_to_ipc(&mut ipc);
 
+    let batch_size = 64;
+
     match connection_type {
         rdma_controller::config::ConnectionType::Server { .. } => loop {
-            let messages: &[u8] = ib_resource.recv_message();
+            unsafe {
+                let mut buffer = ring_buffer.alloc_write(batch_size);
 
-            if messages.len() > 0 {
-                ring_buffer.write(messages);
+                ib_resource
+                    .post_recv(2, &mut mr, Out::<'_, [u8]>::from(buffer.deref_mut()))
+                    .expect("Failed to post recv");
+
+                'outer: loop {
+                    for wc in ib_resource.poll_cq() {
+                        if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
+                            panic!("Request failed");
+                        }
+
+                        if wc.opcode == rdma_sys::ibv_wc_opcode::IBV_WC_RECV {
+                            break 'outer;
+                        }
+                    }
+                }
             }
         },
         rdma_controller::config::ConnectionType::Client { .. } => loop {
             let reader = ring_buffer.read();
 
             if reader.len() > 0 {
-                ib_resource.send_message(reader.as_slice());
+                unsafe {
+                    ib_resource
+                        .post_send(2, &mut mr, reader.deref())
+                        .expect("Failed to post send");
+                }
+
+                loop {
+                    for wc in ib_resource.poll_cq() {
+                        if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
+                            panic!("Request failed");
+                        }
+
+                        if wc.opcode == rdma_sys::ibv_wc_opcode::IBV_WC_SEND {
+                            break;
+                        }
+                    }
+                }
             }
         },
     }
