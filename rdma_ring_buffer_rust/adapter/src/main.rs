@@ -105,6 +105,8 @@ pub fn main() {
             unsafe {
                 let mut buffer = ring_buffer.reserve_write(message_size);
 
+                assert_eq!(buffer.len(), message_size);
+
                 ib_resource
                     .post_srq_recv(2, &mut mr, Out::<'_, [u8]>::from(buffer.deref_mut()))
                     .expect("Failed to post recv");
