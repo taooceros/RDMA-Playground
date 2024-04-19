@@ -33,8 +33,11 @@ impl<'a, T> RingBufferWriter<'a, T> {
             avaliable
         };
 
+        let ptr = ring_buffer as *mut RefRingBuffer<'a, T>;
+
+
         Self {
-            ring_buffer,
+            ring_buffer: ptr,
             offset: tail,
             limit: avaliable.min(limit),
             _marker: PhantomData,
