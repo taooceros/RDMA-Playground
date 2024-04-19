@@ -8,6 +8,13 @@ pub struct Config {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ConnectionType {
-    Server { port: u16 },
-    Client { server_addr: IpAddr, port: u16 },
+    Server {
+        port: u16,
+        message_size: usize,
+    },
+    Client {
+        server_addr: IpAddr,
+        port: u16,
+        message_size: usize,
+    },
 }

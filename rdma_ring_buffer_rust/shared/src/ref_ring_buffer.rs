@@ -25,6 +25,27 @@ impl<'a, T: Send + Copy> RefRingBuffer<'a, T> {
         Self { head, tail, buffer }
     }
 
+    pub fn read_exact(&mut self, len: usize) -> Option<reader::RingBufferReader<T>> {
+        let head = self.head.load_acquire();
+        let tail = self.tail.load_acquire();
+        let buffer_size = self.buffer.len();
+
+        let mut avaliable = tail - head;
+
+        avaliable = avaliable.min(buffer_size - (head % buffer_size));
+
+        if avaliable < len {
+            return None;
+        }
+
+        // SAFETY: acquire load for tail will ensure that the data is written before this line
+        Some(reader::RingBufferReader {
+            ring_buffer: self,
+            offset: head,
+            limit: head + len,
+        })
+    }
+
     // The reader will only return continuous memory slice regardless of the buffer is wrapped around
     // This ensure that RingBufferReader can be converted into slice
     pub fn read(&mut self) -> reader::RingBufferReader<T> {
@@ -92,8 +113,8 @@ impl<'a, T: Send + Copy> RefRingBuffer<'a, T> {
     }
 
     // This writer will only return continuous memory slice regardless of the buffer is wrapped around
-    pub fn alloc_write(&'a mut self, len: usize) -> RingBufferWriter<'a, T> {
-        RingBufferWriter::reserve(self, len)
+    pub fn reserve_write(&'a mut self, len: usize) -> RingBufferWriter<'a, T> {
+        RingBufferWriter::new(self, len)
     }
 }
 

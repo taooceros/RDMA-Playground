@@ -17,7 +17,7 @@ pub struct RingBufferWriter<'a, T> {
 }
 
 impl<'a, T> RingBufferWriter<'a, T> {
-    pub(super) fn reserve(ring_buffer: &'a mut RefRingBuffer<'a, T>, limit: usize) -> Self {
+    pub(super) fn new(ring_buffer: &'a mut RefRingBuffer<'a, T>, limit: usize) -> Self {
         let head = ring_buffer.head.load_acquire();
         let tail = ring_buffer.tail.load_acquire();
 

@@ -28,10 +28,12 @@ pub fn main() {
         rdma_controller::config::ConnectionType::Client {
             server_addr: IpAddr::from_str(args.server_addr.unwrap().as_str()).unwrap(),
             port: args.port.unwrap(),
+            message_size: args.message_size,
         }
     } else {
         rdma_controller::config::ConnectionType::Server {
             port: args.port.unwrap(),
+            message_size: args.message_size,
         }
     };
 
@@ -99,9 +101,9 @@ pub fn main() {
     let batch_size = 1024;
 
     match connection_type {
-        rdma_controller::config::ConnectionType::Server { .. } => loop {
+        rdma_controller::config::ConnectionType::Server { message_size, .. } => loop {
             unsafe {
-                let mut buffer = ring_buffer.alloc_write(batch_size);
+                let mut buffer = ring_buffer.reserve_write(message_size);
 
                 eprintln!("addr {:p}", shmem.as_ptr());
                 eprintln!(
@@ -133,10 +135,8 @@ pub fn main() {
 
             break;
         },
-        rdma_controller::config::ConnectionType::Client { .. } => loop {
-            let reader = ring_buffer.read();
-
-            println!("read length {}", reader.len());
+        rdma_controller::config::ConnectionType::Client { message_size, .. } => loop {
+            let reader = ring_buffer.read_exact(message_size);
 
             if reader.len() > 0 {
                 unsafe {
