@@ -41,6 +41,9 @@ impl<T> Deref for RingBufferReader<'_, T> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
-        unsafe { transmute(&(self.ring_buffer.buffer[self.offset..self.limit])) }
+        let start = self.offset % self.ring_buffer.buffer.len();
+        let end = self.limit % self.ring_buffer.buffer.len();
+
+        unsafe { transmute(&(self.ring_buffer.buffer[start..end])) }
     }
 }

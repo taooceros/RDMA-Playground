@@ -46,13 +46,21 @@ impl<T> Deref for RingBufferWriter<'_, T> {
     type Target = [MaybeUninit<T>];
 
     fn deref(&self) -> &Self::Target {
-        unsafe { &(*self.ring_buffer).buffer[self.offset..self.offset + self.limit] }
+        unsafe {
+            let start = self.offset % (*self.ring_buffer).buffer.len();
+            let end = (self.offset + self.limit) % (*self.ring_buffer).buffer.len();
+            &(*self.ring_buffer).buffer[start..end]
+        }
     }
 }
 
 impl<T> DerefMut for RingBufferWriter<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { &mut (*self.ring_buffer).buffer[self.offset..self.offset + self.limit] }
+        unsafe {
+            let start = self.offset % (*self.ring_buffer).buffer.len();
+            let end = (self.offset + self.limit) % (*self.ring_buffer).buffer.len();
+            &mut (*self.ring_buffer).buffer[start..end]
+        }
     }
 }
 
