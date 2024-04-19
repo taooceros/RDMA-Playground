@@ -13,4 +13,6 @@ pub struct GlobalArgs {
     pub server_addr: Option<String>,
     #[arg(short, long)]
     pub port: Option<u16>,
+    #[arg(short, long, default_value_t = 64usize)]
+    pub message_size: usize,
 }
