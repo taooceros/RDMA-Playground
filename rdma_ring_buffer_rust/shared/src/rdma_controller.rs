@@ -565,7 +565,7 @@ impl IbResource {
             let lkey = mr.mr.as_ref().unwrap().lkey;
             let mut pointer = buffer.as_bytes_out();
 
-            println!(
+            eprintln!(
                 "recv in {:p} with length {}",
                 pointer.as_ptr(),
                 pointer.len()
