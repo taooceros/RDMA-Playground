@@ -18,6 +18,14 @@ unsafe impl Send for MemoryRegion {}
 
 unsafe impl Sync for MemoryRegion {}
 
+impl Drop for MemoryRegion {
+    fn drop(&mut self) {
+        unsafe {
+            rdma_sys::ibv_dereg_mr(self.mr);
+        }
+    }
+}
+
 impl Deref for MemoryRegion {
     type Target = ibv_mr;
 
@@ -38,6 +46,12 @@ impl IbResource {
         buffer: &'a mut [T],
     ) -> io::Result<MemoryRegion> {
         unsafe {
+            eprintln!(
+                "Registering memory region address: {:p} with length: {}",
+                buffer.as_ptr(),
+                buffer.len()
+            );
+
             let mr = ibv_reg_mr(
                 self.pd,
                 buffer.as_ptr().cast_mut().cast(),
