@@ -124,6 +124,8 @@ pub fn main() {
                         }
 
                         if wc.opcode == rdma_sys::ibv_wc_opcode::IBV_WC_RECV {
+                            println!("Received message");
+
                             break 'outer;
                         }
                     }
