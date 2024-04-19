@@ -10,33 +10,33 @@ alias c := client
 alias gc := git-commit
 alias qs := quick-server
 
-configuration := "debug"
+profile := "debug"
 
 git_update:
 	git pull
 
 build: git_update
-	cargo build --{{configuration}}
+	cargo build --profile {{profile}}
 
 server: build kill
-	./target/{{configuration}}/{{adapter_executable}} --port {{port}} -g 1 > adapter.log &
-	./target/{{configuration}}/{{host_executable}} server > host.log &
+	./target/{{profile}}/{{adapter_executable}} --port {{port}} -g 1 > adapter.log &
+	./target/{{profile}}/{{host_executable}} server > host.log &
 
 server_adapter: build
-	./target/{{configuration}}/{{adapter_executable}} --port {{port}} -g 1
+	./target/{{profile}}/{{adapter_executable}} --port {{port}} -g 1
 
 server_host: build
-	./target/{{configuration}}/{{host_executable}} server
+	./target/{{profile}}/{{host_executable}} server
 
 client_adapter: build
-	./target/{{configuration}}/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1
+	./target/{{profile}}/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1
 
 client_host: build
-	./target/{{configuration}}/{{host_executable}} client
+	./target/{{profile}}/{{host_executable}} client
 
 client: build kill
-	./target/{{configuration}}/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1 > adapter.log &
-	./target/{{configuration}}/{{host_executable}} client > host.log &
+	./target/{{profile}}/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1 > adapter.log &
+	./target/{{profile}}/{{host_executable}} client > host.log &
 
 git-commit message="update":
 	git add .
