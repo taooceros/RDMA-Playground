@@ -438,6 +438,8 @@ impl IbResource {
                             println!("Sent data: {:?}", buffer[0]);
                         }
 
+                        println!("count: {}", count);
+
                         if count >= 2 {
                             return;
                         }
