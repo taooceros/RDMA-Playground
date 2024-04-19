@@ -411,6 +411,7 @@ impl IbResource {
         const HANDSHAKE_WR_ID: u64 = 1;
 
         let mut buffer = Vec::<u8>::with_capacity(2);
+        buffer.resize(2, 0);
 
         let mut mr = self.register_memory_region(&mut buffer).unwrap();
 
