@@ -24,13 +24,13 @@ server_adapter: build
 	./target/debug/{{adapter_executable}} --port {{port}} -g 1
 
 server_host: build
-	./target/debug/{{host_executable}} --port {{port}} -g 1
+	./target/debug/{{host_executable}} server
 
 client_adapter: build
 	./target/debug/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1
 
 client_host: build
-	./target/debug/{{host_executable}} -s {{server_ip}} --port {{port}} -g 1
+	./target/debug/{{host_executable}} client
 
 client: build kill
 	./target/debug/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1 > adapter.log &
