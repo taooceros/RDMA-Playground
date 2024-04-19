@@ -429,7 +429,7 @@ impl IbResource {
             let mut count = 0;
 
             loop {
-                self.poll_cq().iter().for_each(|wc| {
+                for wc in self.poll_cq().iter() {
                     if wc.wr_id == HANDSHAKE_WR_ID {
                         count += 1;
                         if wc.opcode == ibv_wc_opcode::IBV_WC_RECV {
@@ -448,7 +448,7 @@ impl IbResource {
                             return;
                         }
                     }
-                });
+                }
             }
         }
     }
