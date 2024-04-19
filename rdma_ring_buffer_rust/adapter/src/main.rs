@@ -138,14 +138,14 @@ pub fn main() {
                         .expect("Failed to post send");
                 }
 
-                loop {
+                'outer: loop {
                     for wc in ib_resource.poll_cq() {
                         if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
                             panic!("Request failed");
                         }
 
                         if wc.opcode == rdma_sys::ibv_wc_opcode::IBV_WC_SEND {
-                            break;
+                            break 'outer;
                         }
                     }
                 }
