@@ -23,11 +23,7 @@ mod communication_manager;
 fn main() {
     let args = GlobalArgs::parse();
 
-    let connection_type = if args.server_addr.is_some() {
-        ConnectionType::Client
-    } else {
-        ConnectionType::Server
-    };
+    let connection_type = args.command;
 
     println!("Start Opening IPC");
 
@@ -67,7 +63,6 @@ fn main() {
     match connection_type {
         ConnectionType::Client => {
             for i in 0..MAX_ITER {
-
                 let mut buffer = [0; BATCH_SIZE];
 
                 for i in 0..BATCH_SIZE {

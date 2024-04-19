@@ -129,9 +129,9 @@ pub fn main() {
             break;
         },
         rdma_controller::config::ConnectionType::Client { message_size, .. } => loop {
-            let reader = ring_buffer.read_exact(message_size);
+            if let Some(reader) = ring_buffer.read_exact(message_size) {
+                assert_eq!(reader.len(), message_size);
 
-            if reader.len() > 0 {
                 unsafe {
                     ib_resource
                         .post_send(2, &mut mr, reader.deref())

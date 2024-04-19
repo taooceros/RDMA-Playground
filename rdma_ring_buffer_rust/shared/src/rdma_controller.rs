@@ -277,10 +277,10 @@ impl IbResource {
 
     fn connect_dest(&mut self, config: Config) -> Result<(), Box<dyn Error>> {
         match config.connection_type {
-            ConnectionType::Server { port } => self.connect_qp_server(port, config.gid_index),
-            ConnectionType::Client { server_addr, port } => {
-                self.connect_qp_client(server_addr, port, config.gid_index)
-            }
+            ConnectionType::Server { port, .. } => self.connect_qp_server(port, config.gid_index),
+            ConnectionType::Client {
+                server_addr, port, ..
+            } => self.connect_qp_client(server_addr, port, config.gid_index),
         }
     }
 
