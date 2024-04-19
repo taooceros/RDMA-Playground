@@ -117,6 +117,8 @@ pub fn main() {
                     }
                 }
             }
+
+            break;
         },
         rdma_controller::config::ConnectionType::Client { .. } => loop {
             let reader = ring_buffer.read();

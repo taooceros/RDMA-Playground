@@ -1,5 +1,6 @@
 use core::panic;
 use std::{
+    marker::PhantomData,
     mem::MaybeUninit,
     ptr,
     sync::{atomic::AtomicUsize, Mutex},
@@ -91,33 +92,8 @@ impl<'a, T: Send + Copy> RefRingBuffer<'a, T> {
     }
 
     // This writer will only return continuous memory slice regardless of the buffer is wrapped around
-    pub fn alloc_write<'b>(&'a mut self, len: usize) -> RingBufferWriter<'b, 'a, T>
-    where
-        'a: 'b,
-    {
-        let head = self.head.load_acquire();
-        let tail = self.tail.load_acquire();
-
-        let buffer_size = self.buffer.len();
-
-        let mut avaliable = buffer_size - (tail - head);
-
-        let to_end = buffer_size - (tail % buffer_size);
-
-        avaliable = if avaliable > to_end {
-            to_end
-        } else {
-            avaliable
-        };
-
-        let write_len = len.min(avaliable);
-
-        let start = tail % buffer_size;
-        RingBufferWriter {
-            ring_buffer: self,
-            offset: start,
-            limit: write_len,
-        }
+    pub fn alloc_write(&'a mut self, len: usize) -> RingBufferWriter<'a, T> {
+        RingBufferWriter::reserve(self, len)
     }
 }
 

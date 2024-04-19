@@ -13,7 +13,6 @@ pub struct RingBuffer<T, const N: usize> {
     pub buffer: [MaybeUninit<T>; N],
 }
 
-
 impl<T: Send + Copy, const N: usize> RingBuffer<T, N> {
     pub fn new() -> Self {
         Self {
