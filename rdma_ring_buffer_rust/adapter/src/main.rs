@@ -43,7 +43,7 @@ pub fn main() {
         gid_index: args.gid_index,
     };
 
-    assert_eq!(ib_resource.setup_ib(config).unwrap(), 0);
+    ib_resource.setup_ib(config).unwrap();
 
     const RINGBUFFER_LEN: usize = 2048;
 

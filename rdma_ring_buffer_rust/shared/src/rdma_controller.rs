@@ -63,7 +63,7 @@ impl IbResource {
         }
     }
 
-    pub fn setup_ib(&mut self, config: Config) -> Result<i32, RdmaError> {
+    pub fn setup_ib(&mut self, config: Config) -> Result<(), RdmaError> {
         unsafe {
             let devices = ibv_get_device_list(null_mut());
 
@@ -172,7 +172,7 @@ impl IbResource {
 
             self.state = State::Connected;
 
-            Ok(0)
+            Ok(())
         }
     }
 
@@ -441,6 +441,8 @@ impl IbResource {
                         println!("count: {}", count);
 
                         if count >= 2 {
+                            println!("Handshake done");
+
                             return;
                         }
                     }
