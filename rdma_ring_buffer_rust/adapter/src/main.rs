@@ -1,3 +1,4 @@
+use core::panic;
 use std::{
     io::{Read, Write},
     mem::{size_of, transmute, MaybeUninit},
@@ -98,6 +99,8 @@ pub fn main() {
 
     init_metadata.write_to_ipc(&mut ipc);
 
+    let mut expected_val: u8 = 0;
+
     match connection_type {
         rdma_controller::config::ConnectionType::Server { message_size, .. } => loop {
             unsafe {
@@ -123,6 +126,19 @@ pub fn main() {
                             }
                         }
                     }
+
+                    for val in 0..buffer.len() {
+                        if buffer[val].assume_init() != expected_val {
+                            eprintln!(
+                                "Expected: {}, Got: {}",
+                                expected_val,
+                                buffer[val].assume_init()
+                            );
+                            eprintln!("Buffer: {:?}", buffer.deref_mut());
+                            panic!("");
+                        }
+                        expected_val = expected_val.wrapping_add(1);
+                    }
                 }
             }
         },
@@ -130,7 +146,10 @@ pub fn main() {
             if let Some(reader) = ring_buffer.read_exact(message_size) {
                 assert_eq!(reader.len(), message_size);
 
-                
+                for val in 0..reader.len() {
+                    assert_eq!(reader[val], expected_val);
+                    expected_val = expected_val.wrapping_add(1);
+                }
 
                 unsafe {
                     ib_resource
