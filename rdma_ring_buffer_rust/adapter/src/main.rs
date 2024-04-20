@@ -17,7 +17,7 @@ use shared::{
 use shared_memory::ShmemConf;
 use uninit::out_ref::Out;
 
-use crate::command_line::GlobalArgs;
+use crate::{atomic_extension::AtomicExtension, command_line::GlobalArgs};
 
 mod atomic_extension;
 mod command_line;
@@ -103,6 +103,8 @@ pub fn main() {
 
     let mut previous_buffer = vec![0; args.message_size];
 
+    let mut previous_head = 0;
+
     match connection_type {
         rdma_controller::config::ConnectionType::Server { message_size, .. } => loop {
             unsafe {
@@ -148,13 +150,17 @@ pub fn main() {
             }
         },
         rdma_controller::config::ConnectionType::Client { message_size, .. } => loop {
+            previous_head = ring_buffer.head_ref().load_acquire();
             if let Some(reader) = ring_buffer.read_exact(message_size) {
                 assert_eq!(reader.len(), message_size);
 
                 for val in reader.iter() {
                     if *val != expected_val {
                         eprintln!("Expected: {}, Got: {}", expected_val, val);
-                        eprintln!("Previous Buffer: {:?}", previous_buffer);
+                        eprintln!(
+                            "Previous Buffer: {:?}, Previous Head: {}",
+                            previous_buffer, previous_head
+                        );
                         eprintln!("Buffer: {:?}", reader.deref());
                         panic!("");
                     }
