@@ -154,6 +154,7 @@ pub fn main() {
                 for val in reader.iter() {
                     if *val != expected_val {
                         eprintln!("Expected: {}, Got: {}", expected_val, val);
+                        eprintln!("Previous Buffer: {:?}", previous_buffer);
                         eprintln!("Buffer: {:?}", reader.deref());
                         panic!("");
                     }
