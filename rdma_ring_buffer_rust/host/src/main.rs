@@ -74,7 +74,12 @@ fn main() {
             dataflow += reader.len();
 
             for data in reader {
-                println!("Read value: {}", data);
+                if *data != expected_data {
+                    println!(
+                        "Data Mismatch: Expected: {}, Actual: {}; at dataflow: {}",
+                        expected_data, data, dataflow
+                    );
+                }
             }
         },
         ConnectionType::Client => loop {
