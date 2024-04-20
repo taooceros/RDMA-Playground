@@ -11,8 +11,8 @@ use super::RefRingBuffer;
 
 pub struct RingBufferWriter<'a, T> {
     ring_buffer: &'a mut RefRingBuffer<T>,
-    offset: usize,
-    limit: usize,
+    start: usize,
+    end: usize,
     _marker: PhantomData<&'a mut T>,
 }
 
@@ -40,8 +40,8 @@ impl<'a, T: Copy + Send> RingBufferWriter<'a, T> {
 
             Some(Self {
                 ring_buffer,
-                offset: tail,
-                limit: tail + size,
+                start: tail,
+                end: tail + size,
                 _marker: PhantomData,
             })
         }
@@ -53,9 +53,9 @@ impl<T: Copy + Send> Deref for RingBufferWriter<'_, T> {
 
     fn deref(&self) -> &Self::Target {
         unsafe {
-            let start = self.offset % self.ring_buffer.buffer_size();
-            let end = (self.offset + self.limit) % self.ring_buffer.buffer_size();
-            if self.offset > 0 && end == 0 {
+            let start = self.start % self.ring_buffer.buffer_size();
+            let end = self.end % self.ring_buffer.buffer_size();
+            if self.end > 0 && end == 0 {
                 &self.ring_buffer.buffer.as_ref().unwrap()[start..]
             } else {
                 &self.ring_buffer.buffer.as_ref().unwrap()[start..end]
@@ -67,9 +67,9 @@ impl<T: Copy + Send> Deref for RingBufferWriter<'_, T> {
 impl<T: Copy + Send> DerefMut for RingBufferWriter<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe {
-            let start = self.offset % (*self.ring_buffer).buffer_size();
-            let end = (self.offset + self.limit) % (*self.ring_buffer).buffer_size();
-            if self.offset > 0 && end == 0 {
+            let start = self.start % self.ring_buffer.buffer_size();
+            let end = self.end % self.ring_buffer.buffer_size();
+            if self.end > 0 && end == 0 {
                 &mut self.ring_buffer.buffer.as_mut().unwrap()[start..]
             } else {
                 &mut self.ring_buffer.buffer.as_mut().unwrap()[start..end]
@@ -85,7 +85,7 @@ impl<T> Drop for RingBufferWriter<'_, T> {
                 .tail
                 .as_ref()
                 .unwrap()
-                .store(self.limit, std::sync::atomic::Ordering::Release);
+                .store(self.end, std::sync::atomic::Ordering::Release);
         }
     }
 }
