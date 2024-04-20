@@ -1,5 +1,6 @@
 server_ip := "192.168.2.1"
 port := "12873"
+duration := "1"
 
 adapter_executable := "rdma_adapter"
 host_executable := "rdma_host"
@@ -20,7 +21,7 @@ build: git_update
 
 server message_size="64": build kill
 	./target/{{configuration}}/{{adapter_executable}} --port {{port}} -g 1 --message-size {{message_size}} > adapter.log &
-	./target/{{configuration}}/{{host_executable}} server > host.log &
+	./target/{{configuration}}/{{host_executable}} server --duration {{duration}} > host.log &
 
 server_adapter: build
 	./target/{{configuration}}/{{adapter_executable}} --port {{port}} -g 1
@@ -36,7 +37,7 @@ client_host: build
 
 client message_size="64": build kill
 	./target/{{configuration}}/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1 --message-size {{message_size}} > adapter.log &
-	./target/{{configuration}}/{{host_executable}} client > host.log &
+	./target/{{configuration}}/{{host_executable}} client --duration {{duration}} > host.log &
 
 git-commit message="update":
 	git add .
