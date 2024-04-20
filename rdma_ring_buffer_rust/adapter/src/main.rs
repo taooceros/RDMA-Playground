@@ -158,15 +158,10 @@ pub fn main() {
                     if *val != expected_val {
                         eprintln!("Expected: {}, Got: {}", expected_val, val);
                         eprintln!(
-                            "Previous Head: {}, Current Head: {}",
-                            previous_head,
-                            current_head
+                            "Previous Head: {}, Previous Buffer: {:?}",
+                            previous_head, previous_buffer
                         );
-                        eprintln!(
-                            "Previous Buffer: {:?}, Current Buffer: {:?}",
-                            previous_buffer,
-                            reader.deref()
-                        );
+                        eprintln!("Buffer: {:?}", reader);
                         panic!("");
                     }
                     expected_val = expected_val.wrapping_add(1);

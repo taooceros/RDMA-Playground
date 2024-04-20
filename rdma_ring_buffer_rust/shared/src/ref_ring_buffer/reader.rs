@@ -1,11 +1,22 @@
-use std::{mem::transmute, ops::Deref};
+use std::fmt::Debug;
+use std::{fmt::Formatter, mem::transmute, ops::Deref};
 
 use super::RefRingBuffer;
 
 pub struct RingBufferReader<'a, T: Copy + Send> {
-    pub(crate) ring_buffer: &'a RefRingBuffer<T>,
-    pub(crate) start: usize,
-    pub(crate) end: usize,
+    pub ring_buffer: &'a RefRingBuffer<T>,
+    pub start: usize,
+    pub end: usize,
+}
+
+impl<T: Copy + Send + Debug> Debug for RingBufferReader<'_, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RingBufferReader")
+            .field("start", &self.start)
+            .field("end", &self.end)
+            .field("buffer", &self.deref())
+            .finish()
+    }
 }
 
 impl<T: Copy + Send> Drop for RingBufferReader<'_, T> {
