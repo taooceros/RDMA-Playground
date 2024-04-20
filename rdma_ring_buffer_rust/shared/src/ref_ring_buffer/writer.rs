@@ -41,7 +41,7 @@ impl<'a, T: Copy + Send> RingBufferWriter<'a, T> {
             Some(Self {
                 ring_buffer,
                 offset: tail,
-                limit: avaliable.min(limit),
+                limit: tail + limit,
                 _marker: PhantomData,
             })
         }

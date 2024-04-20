@@ -134,7 +134,10 @@ pub fn main() {
                                 expected_val,
                                 buffer[val].assume_init()
                             );
-                            eprintln!("Buffer: {:?}", buffer.deref_mut());
+                            eprintln!(
+                                "Buffer: {:?}",
+                                transmute::<&mut [MaybeUninit<u8>], &mut [u8]>(buffer.deref_mut())
+                            );
                             panic!("");
                         }
                         expected_val = expected_val.wrapping_add(1);
