@@ -10,7 +10,8 @@ use uninit::AsMaybeUninit;
 
 use crate::atomic_extension::AtomicExtension;
 
-use self::writer::RingBufferWriter;
+pub mod reader;
+pub mod writer;
 
 // Safety: The Ref must not outlive the underlying RingBuffer
 pub struct RefRingBuffer<T> {
@@ -24,11 +25,11 @@ impl<T: Send + Copy> RefRingBuffer<T> {
         unsafe { self.buffer.as_ref().unwrap().len() }
     }
 
-    fn head_ref(&self) -> &AtomicUsize {
+    pub fn head_ref(&self) -> &AtomicUsize {
         unsafe { self.head.as_ref().unwrap() }
     }
 
-    fn tail_ref(&self) -> &AtomicUsize {
+    pub fn tail_ref(&self) -> &AtomicUsize {
         unsafe { self.tail.as_ref().unwrap() }
     }
 
@@ -134,11 +135,7 @@ impl<T: Send + Copy> RefRingBuffer<T> {
     }
 
     // This writer will only return continuous memory slice regardless of the buffer is wrapped around
-    pub fn reserve_write(&mut self, len: usize) -> Option<RingBufferWriter<T>> {
-        RingBufferWriter::try_reserve(self, len)
+    pub fn reserve_write(&mut self, len: usize) -> Option<writer::RingBufferWriter<T>> {
+        writer::RingBufferWriter::try_reserve(self, len)
     }
 }
-
-mod reader;
-
-mod writer;

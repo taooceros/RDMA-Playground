@@ -2,19 +2,17 @@ use std::{mem::transmute, ops::Deref};
 
 use super::RefRingBuffer;
 
-pub struct RingBufferReader<'a, T> {
+pub struct RingBufferReader<'a, T: Copy + Send> {
     pub(crate) ring_buffer: &'a RefRingBuffer<T>,
     pub(crate) start: usize,
     pub(crate) end: usize,
 }
 
-impl<T> Drop for RingBufferReader<'_, T> {
+impl<T: Copy + Send> Drop for RingBufferReader<'_, T> {
     fn drop(&mut self) {
         unsafe {
             self.ring_buffer
-                .head
-                .as_ref()
-                .unwrap()
+                .head_ref()
                 .store(self.end, std::sync::atomic::Ordering::Release);
         }
     }
