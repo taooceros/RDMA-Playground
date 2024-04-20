@@ -8,14 +8,14 @@ pub struct RingBufferReader<'a, T> {
     pub(crate) limit: usize,
 }
 
-impl<'a, T> Iterator for RingBufferReader<'a, T> {
+impl<'a, T: Send + Copy> Iterator for RingBufferReader<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.offset < self.limit {
             let item = unsafe {
                 self.ring_buffer.buffer.as_mut().unwrap()
-                    [self.offset % self.ring_buffer.buffer.len()]
+                    [self.offset % self.ring_buffer.buffer_size()]
                 .assume_init_ref()
             };
             self.offset += 1;
@@ -42,12 +42,12 @@ impl<T> Drop for RingBufferReader<'_, T> {
     }
 }
 
-impl<T> Deref for RingBufferReader<'_, T> {
+impl<T: Send + Copy> Deref for RingBufferReader<'_, T> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
-        let start = self.offset % self.ring_buffer.buffer.len();
-        let end = self.limit % self.ring_buffer.buffer.len();
+        let start = self.offset % self.ring_buffer.buffer_size();
+        let end = self.limit % self.ring_buffer.buffer_size();
 
         unsafe { transmute(&(self.ring_buffer.buffer.as_mut().unwrap()[start..end])) }
     }

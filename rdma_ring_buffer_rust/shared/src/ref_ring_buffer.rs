@@ -20,6 +20,10 @@ pub struct RefRingBuffer<T> {
 }
 
 impl<T: Send + Copy> RefRingBuffer<T> {
+    pub fn buffer_size(&self) -> usize {
+        unsafe { self.buffer.as_ref().unwrap().len() }
+    }
+
     fn head_ref(&self) -> &AtomicUsize {
         unsafe { self.head.as_ref().unwrap() }
     }
@@ -40,7 +44,7 @@ impl<T: Send + Copy> RefRingBuffer<T> {
         unsafe {
             let head = self.head_ref().load_acquire();
             let tail = self.tail_ref().load_acquire();
-            let buffer_size = self.buffer.len();
+            let buffer_size = self.buffer_size();
 
             let mut avaliable = tail - head;
 
@@ -65,7 +69,7 @@ impl<T: Send + Copy> RefRingBuffer<T> {
         unsafe {
             let head = self.head_ref().load_acquire();
             let tail = self.tail_ref().load_acquire();
-            let buffer_size = self.buffer.len();
+            let buffer_size = self.buffer_size();
 
             let mut avaliable = tail - head;
 
@@ -85,7 +89,7 @@ impl<T: Send + Copy> RefRingBuffer<T> {
             let head = self.head_ref().load_acquire();
             let tail = self.tail_ref().load_acquire();
 
-            let buffer_size = self.buffer.len();
+            let buffer_size = self.buffer_size();
 
             let mut avaliable = buffer_size - (tail - head);
 

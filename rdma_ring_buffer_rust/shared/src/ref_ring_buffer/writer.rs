@@ -16,13 +16,13 @@ pub struct RingBufferWriter<'a, T> {
     _marker: PhantomData<&'a mut T>,
 }
 
-impl<'a, T> RingBufferWriter<'a, T> {
+impl<'a, T: Copy + Send> RingBufferWriter<'a, T> {
     pub(super) fn new(ring_buffer: &'a mut RefRingBuffer<T>, limit: usize) -> Self {
         unsafe {
             let head = ring_buffer.head.as_ref().unwrap().load_acquire();
             let tail = ring_buffer.tail.as_ref().unwrap().load_acquire();
 
-            let buffer_size = ring_buffer.buffer.len();
+            let buffer_size = ring_buffer.buffer_size();
 
             let mut avaliable = buffer_size - (tail - head);
 
@@ -44,23 +44,23 @@ impl<'a, T> RingBufferWriter<'a, T> {
     }
 }
 
-impl<T> Deref for RingBufferWriter<'_, T> {
+impl<T: Copy + Send> Deref for RingBufferWriter<'_, T> {
     type Target = [MaybeUninit<T>];
 
     fn deref(&self) -> &Self::Target {
         unsafe {
-            let start = self.offset % (*self.ring_buffer).buffer.len();
-            let end = (self.offset + self.limit) % (*self.ring_buffer).buffer.len();
+            let start = self.offset % (*self.ring_buffer).buffer_size();
+            let end = (self.offset + self.limit) % (*self.ring_buffer).buffer_size();
             &(*self.ring_buffer).buffer.as_mut().unwrap()[start..end]
         }
     }
 }
 
-impl<T> DerefMut for RingBufferWriter<'_, T> {
+impl<T: Copy + Send> DerefMut for RingBufferWriter<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe {
-            let start = self.offset % (*self.ring_buffer).buffer.len();
-            let end = (self.offset + self.limit) % (*self.ring_buffer).buffer.len();
+            let start = self.offset % (*self.ring_buffer).buffer_size();
+            let end = (self.offset + self.limit) % (*self.ring_buffer).buffer_size();
             &mut (*self.ring_buffer).buffer.as_mut().unwrap()[start..end]
         }
     }
