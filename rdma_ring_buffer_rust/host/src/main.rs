@@ -74,7 +74,8 @@ fn main() {
             dataflow += reader.len();
 
             for data in reader {
-                println!("Read value: {}", data);
+                assert_eq!(*data, expected_data);
+                expected_data = expected_data.wrapping_add(1);
             }
         },
         ConnectionType::Client => loop {
@@ -85,7 +86,6 @@ fn main() {
             for i in 0..batch_size {
                 buffer[i] = expected_data;
                 expected_data = expected_data.wrapping_add(1);
-                println!("Write value: {}", buffer[i]);
             }
 
             ring_buffer.write(&mut buffer);
