@@ -10,7 +10,7 @@ use crate::atomic_extension::AtomicExtension;
 use super::RefRingBuffer;
 
 pub struct RingBufferWriter<'a, T> {
-    ring_buffer: *mut RefRingBuffer<T>,
+    ring_buffer: &'a mut RefRingBuffer<T>,
     offset: usize,
     limit: usize,
     _marker: PhantomData<&'a mut T>,
@@ -49,9 +49,13 @@ impl<T: Copy + Send> Deref for RingBufferWriter<'_, T> {
 
     fn deref(&self) -> &Self::Target {
         unsafe {
-            let start = self.offset % (*self.ring_buffer).buffer_size();
-            let end = (self.offset + self.limit) % (*self.ring_buffer).buffer_size();
-            &(*self.ring_buffer).buffer.as_mut().unwrap()[start..end]
+            let start = self.offset % self.ring_buffer.buffer_size();
+            let end = (self.offset + self.limit) % self.ring_buffer.buffer_size();
+            if self.offset > 0 && end == 0 {
+                &(*self.ring_buffer).buffer.as_mut().unwrap()[start..]
+            } else {
+                &(*self.ring_buffer).buffer.as_mut().unwrap()[start..end]
+            }
         }
     }
 }
