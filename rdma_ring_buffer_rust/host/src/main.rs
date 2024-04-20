@@ -66,6 +66,8 @@ fn main() {
     let begin = clock.now();
     let mut dataflow = 0;
 
+    let mut expected_data: u8 = 0;
+
     match connection_type {
         ConnectionType::Client => loop {
             if clock.now() - begin > duration {
@@ -73,8 +75,9 @@ fn main() {
             }
 
             for i in 0..batch_size {
-                buffer[i] = random();
-                println!("Write value: {}", buffer[i]);
+                buffer[i] = expected_data;
+                expected_data = expected_data.wrapping_add(1);
+                // println!("Write value: {}", buffer[i]);
             }
 
             ring_buffer.write(&mut buffer);
@@ -84,6 +87,17 @@ fn main() {
         ConnectionType::Server => loop {
             let data = ring_buffer.read();
             dataflow += data.len();
+
+            for i in 0..data.len() {
+                if data[i] != expected_data {
+                    panic!(
+                        "Data Mismatch: Expected: {}, Actual: {}",
+                        expected_data, data[i]
+                    );
+                }
+                expected_data = expected_data.wrapping_add(1);
+                // println!("Read value: {}", data[i]);
+            }
         },
     }
 
