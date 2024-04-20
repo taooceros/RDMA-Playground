@@ -103,35 +103,29 @@ pub fn main() {
     match connection_type {
         rdma_controller::config::ConnectionType::Server { message_size, .. } => loop {
             unsafe {
-                let mut buffer = ring_buffer.reserve_write(message_size);
+                if let Some(mut buffer) = ring_buffer.reserve_write(message_size) {
+                    ib_resource
+                        .post_srq_recv(2, &mut mr, Out::<'_, [u8]>::from(buffer.deref_mut()))
+                        .expect("Failed to post recv");
 
-                assert_eq!(buffer.len(), message_size);
+                    'outer: loop {
+                        for wc in ib_resource.poll_cq() {
+                            if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
+                                panic!(
+                                    "wc status {}, last error {}",
+                                    wc.status,
+                                    std::io::Error::last_os_error()
+                                );
+                            }
 
-                eprintln!("buffer len {}", buffer.len());
+                            if wc.opcode == rdma_sys::ibv_wc_opcode::IBV_WC_RECV {
+                                println!("Received message");
 
-                ib_resource
-                    .post_srq_recv(2, &mut mr, Out::<'_, [u8]>::from(buffer.deref_mut()))
-                    .expect("Failed to post recv");
-
-                'outer: loop {
-                    for wc in ib_resource.poll_cq() {
-                        if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
-                            panic!(
-                                "wc status {}, last error {}",
-                                wc.status,
-                                std::io::Error::last_os_error()
-                            );
-                        }
-
-                        if wc.opcode == rdma_sys::ibv_wc_opcode::IBV_WC_RECV {
-                            println!("Received message");
-
-                            break 'outer;
+                                break 'outer;
+                            }
                         }
                     }
                 }
-
-                
             }
         },
         rdma_controller::config::ConnectionType::Client { message_size, .. } => loop {

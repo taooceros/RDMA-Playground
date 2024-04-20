@@ -134,8 +134,8 @@ impl<T: Send + Copy> RefRingBuffer<T> {
     }
 
     // This writer will only return continuous memory slice regardless of the buffer is wrapped around
-    pub fn reserve_write(&mut self, len: usize) -> RingBufferWriter<T> {
-        RingBufferWriter::new(self, len)
+    pub fn reserve_write(&mut self, len: usize) -> Option<RingBufferWriter<T>> {
+        RingBufferWriter::try_reserve(self, len)
     }
 }
 

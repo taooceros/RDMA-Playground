@@ -17,7 +17,7 @@ pub struct RingBufferWriter<'a, T> {
 }
 
 impl<'a, T: Copy + Send> RingBufferWriter<'a, T> {
-    pub(super) fn new(ring_buffer: &'a mut RefRingBuffer<T>, limit: usize) -> Self {
+    pub(super) fn try_reserve(ring_buffer: &'a mut RefRingBuffer<T>, limit: usize) -> Option<Self> {
         unsafe {
             let head = ring_buffer.head.as_ref().unwrap().load_acquire();
             let tail = ring_buffer.tail.as_ref().unwrap().load_acquire();
@@ -34,12 +34,16 @@ impl<'a, T: Copy + Send> RingBufferWriter<'a, T> {
                 avaliable
             };
 
-            Self {
-                ring_buffer: ring_buffer,
+            if avaliable < limit {
+                return None;
+            }
+
+            Some(Self {
+                ring_buffer,
                 offset: tail,
                 limit: avaliable.min(limit),
                 _marker: PhantomData,
-            }
+            })
         }
     }
 }
