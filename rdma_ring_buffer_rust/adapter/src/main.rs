@@ -101,6 +101,8 @@ pub fn main() {
 
     let mut expected_val: u8 = 0;
 
+    let mut previous_buffer = vec![0; args.message_size];
+
     match connection_type {
         rdma_controller::config::ConnectionType::Server { message_size, .. } => loop {
             unsafe {
@@ -149,14 +151,16 @@ pub fn main() {
             if let Some(reader) = ring_buffer.read_exact(message_size) {
                 assert_eq!(reader.len(), message_size);
 
-                for val in 0..reader.len() {
-                    if reader[val] != expected_val {
-                        eprintln!("Expected: {}, Got: {}", expected_val, reader[val]);
+                for val in reader.iter() {
+                    if *val != expected_val {
+                        eprintln!("Expected: {}, Got: {}", expected_val, val);
                         eprintln!("Buffer: {:?}", reader.deref());
                         panic!("");
                     }
                     expected_val = expected_val.wrapping_add(1);
                 }
+
+                previous_buffer.copy_from_slice(reader.deref());
 
                 unsafe {
                     ib_resource
