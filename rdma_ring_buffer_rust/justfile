@@ -11,7 +11,7 @@ alias c := client
 alias gc := git-commit
 alias qs := quick-server
 
-configuration := "debug"
+configuration := "release"
 
 git_update:
 	git pull
@@ -21,7 +21,7 @@ build: git_update
 
 server message_size="64": build kill
 	./target/{{configuration}}/{{adapter_executable}} --port {{port}} -g 1 --message-size {{message_size}} > adapter.log &
-	./target/{{configuration}}/{{host_executable}} server --duration {{duration}} > host.log &
+	./target/{{configuration}}/{{host_executable}} server --duration {{duration}} --batch-size {{message_size}} > host.log &
 
 server_adapter: build
 	./target/{{configuration}}/{{adapter_executable}} --port {{port}} -g 1
@@ -37,7 +37,7 @@ client_host: build
 
 client message_size="64": build kill
 	./target/{{configuration}}/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1 --message-size {{message_size}} > adapter.log &
-	./target/{{configuration}}/{{host_executable}} client --duration {{duration}} > host.log &
+	./target/{{configuration}}/{{host_executable}} client --duration {{duration}} --batch-size {{message_size}} > host.log &
 
 git-commit message="update":
 	git add .
