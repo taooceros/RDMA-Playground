@@ -49,6 +49,10 @@ impl<T: Send + Copy> Deref for RingBufferReader<'_, T> {
         let start = self.offset % self.ring_buffer.buffer_size();
         let end = self.limit % self.ring_buffer.buffer_size();
 
-        unsafe { transmute(&(self.ring_buffer.buffer.as_mut().unwrap()[start..end])) }
+        if self.offset > 0 && end == 0 {
+            unsafe { transmute(&(self.ring_buffer.buffer.as_mut().unwrap()[start..])) }
+        } else {
+            unsafe { transmute(&(self.ring_buffer.buffer.as_mut().unwrap()[start..end])) }
+        }
     }
 }
