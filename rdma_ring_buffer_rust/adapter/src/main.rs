@@ -150,7 +150,11 @@ pub fn main() {
                 assert_eq!(reader.len(), message_size);
 
                 for val in 0..reader.len() {
-                    assert_eq!(reader[val], expected_val);
+                    if reader[val] != expected_val {
+                        eprintln!("Expected: {}, Got: {}", expected_val, reader[val]);
+                        eprintln!("Buffer: {:?}", reader.deref_mut());
+                        panic!("");
+                    }
                     expected_val = expected_val.wrapping_add(1);
                 }
 
