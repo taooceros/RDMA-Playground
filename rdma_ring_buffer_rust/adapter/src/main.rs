@@ -130,6 +130,8 @@ pub fn main() {
             if let Some(reader) = ring_buffer.read_exact(message_size) {
                 assert_eq!(reader.len(), message_size);
 
+                
+
                 unsafe {
                     ib_resource
                         .post_send(2, &mut mr, reader.deref())

@@ -37,7 +37,7 @@ impl<T> Drop for RingBufferReader<'_, T> {
                 .head
                 .as_ref()
                 .unwrap()
-                .store(self.offset, std::sync::atomic::Ordering::Release);
+                .store(self.limit, std::sync::atomic::Ordering::Release);
         }
     }
 }
@@ -49,10 +49,10 @@ impl<T: Send + Copy> Deref for RingBufferReader<'_, T> {
         let start = self.offset % self.ring_buffer.buffer_size();
         let end = self.limit % self.ring_buffer.buffer_size();
 
-        if self.offset > 0 && end == 0 {
-            unsafe { transmute(&(self.ring_buffer.buffer.as_mut().unwrap()[start..])) }
+        if self.limit > 0 && end == 0 {
+            unsafe { transmute(&(self.ring_buffer.buffer.as_ref().unwrap()[start..])) }
         } else {
-            unsafe { transmute(&(self.ring_buffer.buffer.as_mut().unwrap()[start..end])) }
+            unsafe { transmute(&(self.ring_buffer.buffer.as_ref().unwrap()[start..end])) }
         }
     }
 }
