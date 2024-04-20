@@ -1,32 +1,34 @@
+use bytemuck::{bytes_of, cast_ref, AnyBitPattern, NoUninit};
 use core::panic;
 use rand::random;
 use rdma_sys::{ibv_qp_state::IBV_QPS_INIT, *};
 use std::{
-    array,
     error::Error,
-    ffi::{CStr, CString},
+    ffi::CStr,
     fmt::Display,
-    io::{Read, Write},
-    mem::{size_of, transmute, zeroed, MaybeUninit},
+    io::{self, Read, Write},
+    mem::{align_of, size_of, size_of_val, take, transmute, zeroed, MaybeUninit},
     net::{IpAddr, SocketAddr, TcpListener},
     num::NonZeroI32,
-    ptr::{copy_nonoverlapping, null, null_mut},
-    slice,
-    thread::sleep,
-    time::Duration,
+    ops::{Range, RangeBounds},
+    ptr::{copy_nonoverlapping, null_mut, read, slice_from_raw_parts, slice_from_raw_parts_mut},
+    slice::{self, SliceIndex},
 };
-
-use crate::communication_manager::CommunicationManager;
+use uninit::out_ref::Out;
+use zerocopy::{AsBytes, FromBytes};
 
 use self::{
     config::{Config, ConnectionType},
+    memory_region::MemoryRegion,
     qp_info::DestQpInfo,
 };
 
 pub mod config;
 mod qp_info;
 
-pub struct IbResource<'a> {
+mod memory_region;
+
+pub struct IbResource {
     ctx: *mut ibv_context,
     pd: *mut ibv_pd,
     mr: *mut ibv_mr,
@@ -35,7 +37,6 @@ pub struct IbResource<'a> {
     srq: *mut ibv_srq,
     port_attr: MaybeUninit<ibv_port_attr>,
     dev_attr: MaybeUninit<ibv_device_attr>,
-    ib_buf: &'a mut [u8],
     state: State,
 }
 
@@ -47,10 +48,8 @@ pub enum State {
     Error,
 }
 
-impl<'a> IbResource<'a> {
-    pub fn new(buffer_size: usize) -> Self {
-        let buffer = vec![0u8; buffer_size];
-
+impl IbResource {
+    pub fn new() -> Self {
         IbResource {
             ctx: null_mut(),
             pd: null_mut(),
@@ -60,12 +59,11 @@ impl<'a> IbResource<'a> {
             srq: null_mut(),
             port_attr: MaybeUninit::zeroed(),
             dev_attr: MaybeUninit::zeroed(),
-            ib_buf: Box::leak(buffer.into_boxed_slice()),
             state: State::Init,
         }
     }
 
-    pub fn setup_ib(&mut self, config: Config) -> Result<i32, RdmaError> {
+    pub fn setup_ib(&mut self, config: Config) -> Result<(), RdmaError> {
         unsafe {
             let devices = ibv_get_device_list(null_mut());
 
@@ -108,29 +106,6 @@ impl<'a> IbResource<'a> {
 
             if ret != 0 {
                 panic!("Failed to query port");
-            }
-
-            //
-            /* register mr */
-            /* TODO: set the buf_size twice as large as msg_size * num_concurr_msgs */
-            /* the recv buffer occupies the first half while the sending buffer */
-            /* occupies the second half */
-            //
-
-            // println!("ib_buf.len(): {}", self.ib_buf.len());
-
-            self.mr = ibv_reg_mr(
-                self.pd,
-                self.ib_buf.as_mut_ptr() as *mut _,
-                self.ib_buf.len(),
-                (ibv_access_flags::IBV_ACCESS_LOCAL_WRITE
-                    | ibv_access_flags::IBV_ACCESS_REMOTE_WRITE
-                    | ibv_access_flags::IBV_ACCESS_REMOTE_READ)
-                    .0 as i32,
-            );
-
-            if self.mr.is_null() {
-                panic!("Failed to register memory region");
             }
 
             ret = ibv_query_device(self.ctx, self.dev_attr.as_mut_ptr());
@@ -197,7 +172,7 @@ impl<'a> IbResource<'a> {
 
             self.state = State::Connected;
 
-            Ok(0)
+            Ok(())
         }
     }
 
@@ -302,10 +277,10 @@ impl<'a> IbResource<'a> {
 
     fn connect_dest(&mut self, config: Config) -> Result<(), Box<dyn Error>> {
         match config.connection_type {
-            ConnectionType::Server { port } => self.connect_qp_server(port, config.gid_index),
-            ConnectionType::Client { server_addr, port } => {
-                self.connect_qp_client(server_addr, port, config.gid_index)
-            }
+            ConnectionType::Server { port, .. } => self.connect_qp_server(port, config.gid_index),
+            ConnectionType::Client {
+                server_addr, port, ..
+            } => self.connect_qp_client(server_addr, port, config.gid_index),
         }
     }
 
@@ -428,310 +403,189 @@ impl<'a> IbResource<'a> {
 
             self.handshake();
 
+            println!("Connected to dest");
+
             Ok(())
         }
     }
 
-    // fn send_message<M>(&mut self, message: M, wr_id: u64) {
-    //     if self.state != State::Connected {
-    //         panic!("QP is not connected");
-    //     }
-
-    //     let buffer = unsafe {
-    //         let buffer = &mut self.ib_buf[self.buf_head..self.buf_head + size_of::<M>()];
-    //         self.buf_head += size_of::<M>();
-    //         buffer
-    //     };
-    // }
-
     fn handshake(&mut self) {
         const HANDSHAKE_WR_ID: u64 = 1;
 
+        let mut buffer = Vec::<u8>::with_capacity(2);
+        buffer.resize(2, 0);
+
+        let mut mr = self.register_memory_region(&mut buffer).unwrap();
+
         unsafe {
-            self.ib_buf[0] = random();
+            buffer[0] = random();
 
-            let ret = post_send(
-                self.qp,
-                self.mr.as_ref().unwrap().lkey,
-                HANDSHAKE_WR_ID,
-                &mut self.ib_buf[..1],
-            );
+            self.post_send(HANDSHAKE_WR_ID, &mut mr, &mut buffer[0..1])
+                .expect("Failed to post send on Handshake");
 
-            if ret != 0 {
-                panic!("Failed to post send");
-            }
-
-            println!("Sent data: {}", self.ib_buf[0]);
-
-            let offset = self.ib_buf.len() / 2;
-
-            let ret = post_srq_recv(
-                self.srq,
-                self.mr.as_ref().unwrap().lkey,
-                HANDSHAKE_WR_ID,
-                &mut self.ib_buf[offset..offset + 1],
-            );
-
-            if ret != 0 {
-                panic!("Failed to post srq recv");
-            }
+            self.post_srq_recv(HANDSHAKE_WR_ID, &mut mr, Out::from(&mut buffer[1..2]))
+                .expect("Failed to post recv on Handshake");
 
             let mut count = 0;
 
             loop {
-                const WC_INIT: MaybeUninit<ibv_wc> = MaybeUninit::zeroed();
-
-                let mut wc_buffer = [WC_INIT; 16];
-
-                let num_polled = ibv_poll_cq(self.cq, 16, &mut wc_buffer as *mut _ as *mut _);
-
-                if num_polled < 0 {
-                    panic!("Failed to poll cq");
-                }
-
-                if num_polled == 0 {
-                    continue;
-                }
-
-                println!("Polled {} wc", num_polled);
-
-                for wc in wc_buffer[..num_polled as usize].iter() {
-                    let wc = wc.assume_init_ref();
-
-                    if wc.wr_id == HANDSHAKE_WR_ID && wc.opcode == ibv_wc_opcode::IBV_WC_RECV {
-                        if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
-                            panic!("Handshake failed");
-                        }
-
-                        println!("Receive successful with data: {}", self.ib_buf[offset]);
-
+                for wc in self.poll_cq().iter() {
+                    if wc.wr_id == HANDSHAKE_WR_ID {
                         count += 1;
-                    }
-
-                    if wc.wr_id == HANDSHAKE_WR_ID && wc.opcode == ibv_wc_opcode::IBV_WC_SEND {
-                        if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
-                            panic!("Handshake failed");
+                        if wc.opcode == ibv_wc_opcode::IBV_WC_RECV {
+                            println!("Received data: {:?}", buffer[1]);
                         }
 
-                        println!("Send successful");
+                        if wc.opcode == ibv_wc_opcode::IBV_WC_SEND {
+                            println!("Sent data: {:?}", buffer[0]);
+                        }
 
-                        count += 1;
-                    }
+                        println!("count: {}", count);
 
-                    if count == 2 {
-                        println!("Handshake complete");
-                        return;
+                        if count >= 2 {
+                            println!("Handshake done");
+
+                            return;
+                        }
                     }
                 }
             }
         }
     }
 
-    pub fn send_message<M>(&mut self, message: &[M]) {
+    // Safety: data must be part of the memory region
+    pub unsafe fn post_send(
+        &mut self,
+        wr_id: u64,
+        mr: &mut MemoryRegion,
+        data: &[(impl FromBytes + AsBytes)],
+    ) -> io::Result<()> {
         unsafe {
-            let buffer = &mut self.ib_buf[0..(size_of::<M>()) * message.len()];
+            let mut bad_send_wr = zeroed();
 
-            copy_nonoverlapping(message.as_ptr().cast(), buffer.as_mut_ptr(), buffer.len());
+            let lkey = mr.mr.as_ref().unwrap().lkey;
 
-            println!(
-                "Sending {} messages with size {}",
-                message.len(),
-                buffer.len()
-            );
+            let u8_ref = data.as_bytes();
 
-            let ret = post_send(
-                self.qp,
-                self.mr.as_ref().unwrap().lkey,
-                2,
-                &mut self.ib_buf[..size_of::<M>() * message.len()],
-            );
+            let mut list = ibv_sge {
+                addr: u8_ref.as_ptr() as u64,
+                length: u8_ref.len().try_into().unwrap(),
+                lkey,
+            };
 
-            if ret != 0 {
-                panic!("Failed to post send");
+            let mut send_wr = ibv_send_wr {
+                wr_id,
+                sg_list: &mut list,
+                num_sge: 1,
+                opcode: ibv_wr_opcode::IBV_WR_SEND,
+                send_flags: ibv_send_flags::IBV_SEND_SIGNALED.0,
+                ..zeroed()
+            };
+
+            let errno = ibv_post_send(self.qp, &mut send_wr, &mut bad_send_wr);
+
+            if errno != 0 {
+                return Err(io::Error::last_os_error());
             }
 
-            // wait for work completion
-            loop {
-                const WC_INIT: MaybeUninit<ibv_wc> = MaybeUninit::zeroed();
-
-                let mut wc_buffer = [WC_INIT; 1];
-
-                let num_polled = ibv_poll_cq(self.cq, 1, wc_buffer.as_mut_ptr().cast());
-
-                if num_polled < 0 {
-                    panic!("Failed to poll cq");
-                }
-
-                if num_polled == 0 {
-                    continue;
-                }
-
-                println!("Polled {} wc", num_polled);
-
-                for wc in wc_buffer[..num_polled as usize].iter() {
-                    let wc = wc.assume_init_ref();
-
-                    if wc.wr_id == 2 && wc.opcode == ibv_wc_opcode::IBV_WC_SEND {
-                        if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
-                            panic!("Send failed");
-                        }
-
-                        println!("Send successful");
-
-                        return;
-                    }
-                }
-            }
+            return Ok(());
         }
     }
 
-    pub fn recv_message<M>(&mut self) -> &[M] {
+    pub fn poll_cq(&mut self) -> Vec<ibv_wc> {
         unsafe {
-            let buf_offset = self.ib_buf.len() / 2;
+            const WC_INIT: MaybeUninit<ibv_wc> = MaybeUninit::zeroed();
 
-            let buffer = &mut self.ib_buf[buf_offset..];
+            let mut wc_buffer = [WC_INIT; 16];
 
-            let ret = post_srq_recv(self.srq, self.mr.as_ref().unwrap().lkey, 3, buffer);
+            let num_polled = ibv_poll_cq(self.cq, 16, &mut wc_buffer as *mut _ as *mut _);
 
-            if ret != 0 {
-                panic!("Failed to post srq recv");
+            if num_polled < 0 {
+                panic!("Failed to poll cq");
             }
 
-            // wait for work completion
-            loop {
-                const WC_INIT: MaybeUninit<ibv_wc> = MaybeUninit::zeroed();
-
-                let mut wc_buffer = [WC_INIT; 1];
-
-                let num_polled = ibv_poll_cq(self.cq, 1, &mut wc_buffer as *mut _ as *mut _);
-
-                if num_polled < 0 {
-                    panic!("Failed to poll cq");
-                }
-
-                if num_polled == 0 {
-                    continue;
-                }
-
-                println!("Polled {} wc", num_polled);
-
-                for wc in wc_buffer[..num_polled as usize].iter() {
-                    let wc = wc.assume_init_ref();
-
-                    if wc.wr_id == 3 && wc.opcode == ibv_wc_opcode::IBV_WC_RECV {
-                        if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
-                            panic!("Receive failed");
-                        }
-
-                        let len = wc.byte_len as usize / size_of::<M>();
-
-                        println!("Receive {} bytes", len);
-
-                        return slice::from_raw_parts(buffer.as_ptr().cast(), len);
-                    }
-                }
+            if num_polled == 0 {
+                return vec![];
             }
+
+            println!("Polled {} wc", num_polled);
+
+            wc_buffer[..num_polled as usize]
+                .iter_mut()
+                .map(|wc| read(wc).assume_init())
+                .collect()
         }
     }
 
-    pub fn try_recv_message<M>(&mut self) -> Option<&[M]> {
+    pub unsafe fn post_recv<'a, T: FromBytes>(
+        &mut self,
+        wr_id: u64,
+        mr: &mut MemoryRegion,
+        buffer: Out<'a, [T]>,
+    ) -> io::Result<()> {
         unsafe {
-            let buf_offset = self.ib_buf.len() / 2;
+            let mut bad_recv_wr = null_mut();
 
-            let buffer = &mut self.ib_buf[buf_offset..];
+            let lkey = mr.mr.as_ref().unwrap().lkey;
 
-            let ret = post_srq_recv(self.srq, self.mr.as_ref().unwrap().lkey, 3, buffer);
+            let mut pointer = buffer.as_bytes_out();
 
-            if ret != 0 {
-                panic!("Failed to post srq recv with error code {ret}");
+            let mut list = ibv_sge {
+                addr: pointer.as_mut_ptr() as *mut u8 as u64,
+                length: pointer.len().try_into().unwrap(),
+                lkey,
+            };
+
+            let mut recv_wr = ibv_recv_wr {
+                wr_id,
+                sg_list: &mut list,
+                num_sge: 1,
+                ..zeroed()
+            };
+
+            let errno = ibv_post_recv(self.qp, &mut recv_wr, &mut bad_recv_wr);
+
+            if errno != 0 {
+                return Err(io::Error::last_os_error());
             }
 
-            // wait for work completion
-            loop {
-                const WC_INIT: MaybeUninit<ibv_wc> = MaybeUninit::zeroed();
+            return Ok(());
+        }
+    }
 
-                let mut wc_buffer = [WC_INIT; 1];
+    pub unsafe fn post_srq_recv<'a, T: FromBytes>(
+        &mut self,
+        wr_id: u64,
+        mr: &mut MemoryRegion,
+        buffer: Out<'a, [T]>,
+    ) -> io::Result<()> {
+        unsafe {
+            let mut bad_recv_wr = null_mut();
 
-                let num_polled = ibv_poll_cq(self.cq, 1, wc_buffer.as_mut_ptr().cast());
+            let lkey = mr.mr.as_ref().unwrap().lkey;
+            let mut pointer = buffer.as_bytes_out();
 
-                if num_polled < 0 {
-                    panic!("Failed to poll cq");
-                }
+            let mut list = ibv_sge {
+                addr: pointer.as_mut_ptr() as *mut u8 as u64,
+                length: pointer.len().try_into().unwrap(),
+                lkey,
+            };
 
-                if num_polled == 0 {
-                    return None;
-                }
+            let mut recv_wr = ibv_recv_wr {
+                wr_id,
+                sg_list: &mut list,
+                num_sge: 1,
+                ..zeroed()
+            };
 
-                println!("Polled {} wc", num_polled);
+            let errno = ibv_post_srq_recv(self.srq, &mut recv_wr, &mut bad_recv_wr);
 
-                for wc in wc_buffer[..num_polled as usize].iter() {
-                    let wc = wc.assume_init_ref();
-
-                    if wc.wr_id == 3 && wc.opcode == ibv_wc_opcode::IBV_WC_RECV {
-                        if wc.status != ibv_wc_status::IBV_WC_SUCCESS {
-                            panic!("Receive failed");
-                        }
-
-                        println!("Receive successful");
-
-                        return Some(transmute(buffer[0..(wc.byte_len as usize)].as_ref()));
-                    }
-                }
+            if errno != 0 {
+                return Err(io::Error::last_os_error());
             }
+
+            return Ok(());
         }
-    }
-}
-
-fn post_srq_recv(srq: *mut ibv_srq, lkey: u32, wr_id: u64, buffer: &mut [u8]) -> i32 {
-    unsafe {
-        let mut bad_recv_wr = zeroed();
-
-        let mut list = ibv_sge {
-            addr: buffer.as_ptr() as u64,
-            length: buffer.len() as u32,
-            lkey: lkey,
-        };
-
-        let mut recv_wr = ibv_recv_wr {
-            wr_id: wr_id,
-            sg_list: &mut list,
-            num_sge: 1,
-            ..zeroed()
-        };
-
-        let ret = ibv_post_srq_recv(srq, &mut recv_wr, &mut bad_recv_wr);
-
-        if ret != 0 {
-            println!("last os error: {}", std::io::Error::last_os_error());
-            panic!("Failed to post srq recv with error code {ret}");
-        }
-
-        return ret;
-    }
-}
-
-fn post_send(qp: *mut ibv_qp, lkey: u32, wr_id: u64, buffer: &mut [u8]) -> i32 {
-    unsafe {
-        let mut bad_send_wr = zeroed();
-
-        let mut list = ibv_sge {
-            addr: buffer.as_ptr() as u64,
-            length: buffer.len() as u32,
-            lkey: lkey,
-        };
-
-        let mut send_wr = ibv_send_wr {
-            wr_id,
-            sg_list: &mut list,
-            num_sge: 1,
-            opcode: ibv_wr_opcode::IBV_WR_SEND,
-            send_flags: ibv_send_flags::IBV_SEND_SIGNALED.0,
-            ..zeroed()
-        };
-
-        let ret = ibv_post_send(qp, &mut send_wr, &mut bad_send_wr);
-
-        return ret;
     }
 }
 
@@ -797,20 +651,5 @@ impl Display for RdmaError {
             } => write!(f, "Failed to modify QP from {} to {}", from_state, to_state),
             RdmaError::RegMrError => write!(f, "Failed to register memory region"),
         }
-    }
-}
-
-impl CommunicationManager for IbResource<'_> {
-    fn send_message<M>(&mut self, message: &[M]) -> Result<(), Box<dyn Error>> {
-        self.send_message(message);
-        Ok(())
-    }
-
-    fn try_recv_message<M>(&mut self) -> Result<Option<&[M]>, Box<dyn Error>> {
-        Ok(self.try_recv_message::<M>())
-    }
-
-    fn recv_message<M>(&mut self) -> Result<&[M], Box<dyn Error>> {
-        Ok(self.recv_message::<M>())
     }
 }

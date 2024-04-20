@@ -1,7 +1,8 @@
 server_ip := "192.168.2.1"
 port := "12873"
 
-executable := "rdma_ring_buffer_rust"
+adapter_executable := "rdma_adapter"
+host_executable := "rdma_host"
 
 alias s := server
 alias c := client
@@ -9,17 +10,33 @@ alias c := client
 alias gc := git-commit
 alias qs := quick-server
 
+configuration := "debug"
+
 git_update:
 	git pull
 
 build: git_update
-	cargo build
+	cargo build {{ if configuration == "release" {"--release"} else {""} }}
 
-server: build
-	./target/debug/{{executable}} --port {{port}} -g 1
+server message_size="64": build kill
+	./target/{{configuration}}/{{adapter_executable}} --port {{port}} -g 1 --message-size {{message_size}} > adapter.log &
+	./target/{{configuration}}/{{host_executable}} server > host.log &
 
-client: build
-	./target/debug/{{executable}} -s {{server_ip}} --port {{port}} -g 1
+server_adapter: build
+	./target/{{configuration}}/{{adapter_executable}} --port {{port}} -g 1
+
+server_host: build
+	./target/{{configuration}}/{{host_executable}} server
+
+client_adapter: build
+	./target/{{configuration}}/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1
+
+client_host: build
+	./target/{{configuration}}/{{host_executable}} client
+
+client message_size="64": build kill
+	./target/{{configuration}}/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1 --message-size {{message_size}} > adapter.log &
+	./target/{{configuration}}/{{host_executable}} client > host.log &
 
 git-commit message="update":
 	git add .
@@ -27,3 +44,8 @@ git-commit message="update":
 	git push
 
 quick-server message="update": (git-commit message) && server
+
+kill:
+	rm sync || true
+	killall {{adapter_executable}} || true
+	killall {{host_executable}} || true
