@@ -80,6 +80,8 @@ fn main() {
                         expected_data, data, dataflow
                     );
                 }
+
+                expected_data = expected_data.wrapping_add(1);
             }
         },
         ConnectionType::Client => loop {
