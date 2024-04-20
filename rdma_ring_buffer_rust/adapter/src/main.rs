@@ -160,7 +160,7 @@ pub fn main() {
                         eprintln!(
                             "Previous Head: {}, Current Head: {}",
                             previous_head,
-                            current_head.head_ref().load_acquire()
+                            current_head
                         );
                         eprintln!(
                             "Previous Buffer: {:?}, Current Buffer: {:?}",
