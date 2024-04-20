@@ -17,7 +17,7 @@ pub struct RingBufferWriter<'a, T> {
 }
 
 impl<'a, T: Copy + Send> RingBufferWriter<'a, T> {
-    pub(super) fn try_reserve(ring_buffer: &'a mut RefRingBuffer<T>, limit: usize) -> Option<Self> {
+    pub(super) fn try_reserve(ring_buffer: &'a mut RefRingBuffer<T>, size: usize) -> Option<Self> {
         unsafe {
             let head = ring_buffer.head.as_ref().unwrap().load_acquire();
             let tail = ring_buffer.tail.as_ref().unwrap().load_acquire();
@@ -34,14 +34,14 @@ impl<'a, T: Copy + Send> RingBufferWriter<'a, T> {
                 avaliable
             };
 
-            if avaliable < limit {
+            if avaliable < size {
                 return None;
             }
 
             Some(Self {
                 ring_buffer,
                 offset: tail,
-                limit: tail + limit,
+                limit: tail + size,
                 _marker: PhantomData,
             })
         }
@@ -81,10 +81,11 @@ impl<T: Copy + Send> DerefMut for RingBufferWriter<'_, T> {
 impl<T> Drop for RingBufferWriter<'_, T> {
     fn drop(&mut self) {
         unsafe {
-            (*self.ring_buffer).tail.as_ref().unwrap().store(
-                self.offset + self.limit,
-                std::sync::atomic::Ordering::Release,
-            );
+            (*self.ring_buffer)
+                .tail
+                .as_ref()
+                .unwrap()
+                .store(self.limit, std::sync::atomic::Ordering::Release);
         }
     }
 }
