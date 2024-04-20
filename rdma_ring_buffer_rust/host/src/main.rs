@@ -71,13 +71,15 @@ fn main() {
     match connection_type {
         ConnectionType::Server => loop {
             let reader = ring_buffer.read();
-            dataflow += reader.len();
+
+            let reader_len = reader.len();
+            dataflow += reader_len;
 
             for data in reader {
                 if *data != expected_data {
                     println!(
                         "Data Mismatch: Expected: {}, Actual: {}; at dataflow: {}, reader_len: {}",
-                        expected_data, data, dataflow, reader.len()
+                        expected_data, data, dataflow, reader_len
                     );
                 }
 
