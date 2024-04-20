@@ -57,8 +57,8 @@ impl<T: Send + Copy> RefRingBuffer<T> {
             // SAFETY: acquire load for tail will ensure that the data is written before this line
             Some(reader::RingBufferReader {
                 ring_buffer: self,
-                offset: head,
-                limit: head + len,
+                start: head,
+                end: head + len,
             })
         }
     }
