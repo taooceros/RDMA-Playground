@@ -4,9 +4,11 @@ use std::{
     mem::{align_of, size_of, MaybeUninit},
     slice,
     sync::atomic::AtomicUsize,
+    time::Duration,
 };
 
 use clap::Parser;
+use quanta::Clock;
 use rand::random;
 use shared::{
     ipc::{ring_buffer_metadata::RingBufferMetaData, Ipc},
@@ -24,6 +26,9 @@ fn main() {
     let args = GlobalArgs::parse();
 
     let connection_type = args.command;
+
+    let batch_size = args.batch_size.get();
+    let duration = Duration::from_secs(args.duration.get());
 
     println!("Start Opening IPC");
 
@@ -54,41 +59,39 @@ fn main() {
     });
 
     println!("Starting RDMA Ring Buffer Test");
+    let mut buffer = vec![0; batch_size];
 
-    const BATCH_SIZE: usize = 1024;
-    const MAX_ITER: usize = 128;
+    let clock = Clock::new();
 
-    const DATA_SIZE: usize = BATCH_SIZE * MAX_ITER;
+    let begin = clock.now();
+    let mut dataflow = 0;
 
     match connection_type {
-        ConnectionType::Client => {
-            for i in 0..MAX_ITER {
-                let mut buffer = [0; BATCH_SIZE];
-
-                for i in 0..BATCH_SIZE {
-                    buffer[i] = random();
-                    println!("Write value: {}", buffer[i]);
-                }
-
-                ring_buffer.write(&mut buffer);
+        ConnectionType::Client => loop {
+            if clock.now() - begin > duration {
+                break;
             }
-        }
-        ConnectionType::Server => {
-            let mut readed_data = 0;
 
-            for i in 0.. {
-                let data = ring_buffer.read();
-                readed_data += data.len();
-                for item in data {
-                    println!("Read value: {}", item);
-                }
-
-                if readed_data >= DATA_SIZE {
-                    break;
-                }
+            for i in 0..batch_size {
+                buffer[i] = random();
+                println!("Write value: {}", buffer[i]);
             }
-        }
+
+            ring_buffer.write(&mut buffer);
+
+            dataflow += batch_size;
+        },
+        ConnectionType::Server => loop {
+            let data = ring_buffer.read();
+            dataflow += data.len();
+        },
     }
+
+    println!("Readed Data: {}", dataflow);
+    println!(
+        "Throughput: {} GB/s",
+        dataflow as f64 / duration.as_secs_f64() / 1024.0 / 1024.0
+    );
 
     println!("Finished RDMA Ring Buffer Test");
 }

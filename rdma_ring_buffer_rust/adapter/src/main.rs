@@ -98,8 +98,6 @@ pub fn main() {
 
     init_metadata.write_to_ipc(&mut ipc);
 
-    let batch_size = 1024;
-
     match connection_type {
         rdma_controller::config::ConnectionType::Server { message_size, .. } => loop {
             unsafe {
