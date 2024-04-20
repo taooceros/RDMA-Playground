@@ -7,9 +7,9 @@ use clap::{arg, command, Parser, Subcommand};
 pub struct GlobalArgs {
     #[command(subcommand)]
     pub command: ConnectionType,
-    #[arg(short, long, default_value_t = NonZeroUsize::new(64).unwrap())]
+    #[arg(global = true, short, long, default_value_t = NonZeroUsize::new(64).unwrap())]
     pub batch_size: NonZeroUsize,
-    #[arg(short, long, default_value_t = NonZeroU64::new(5).unwrap())]
+    #[arg(global = true, short, long, default_value_t = NonZeroU64::new(5).unwrap())]
     pub duration: NonZeroU64,
 }
 
