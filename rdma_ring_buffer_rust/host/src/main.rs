@@ -76,8 +76,8 @@ fn main() {
             for data in reader {
                 if *data != expected_data {
                     println!(
-                        "Data Mismatch: Expected: {}, Actual: {}; at dataflow: {}",
-                        expected_data, data, dataflow
+                        "Data Mismatch: Expected: {}, Actual: {}; at dataflow: {}, reader_len: {}",
+                        expected_data, data, dataflow, reader.len()
                     );
                 }
 
