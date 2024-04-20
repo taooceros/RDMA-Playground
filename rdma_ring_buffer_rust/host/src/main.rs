@@ -70,6 +70,10 @@ fn main() {
 
     match connection_type {
         ConnectionType::Server => loop {
+            if clock.now() - begin > duration {
+                break;
+            }
+
             let reader = ring_buffer.read();
 
             let reader_len = reader.len();
