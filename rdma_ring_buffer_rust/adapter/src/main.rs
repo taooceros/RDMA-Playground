@@ -150,7 +150,7 @@ pub fn main() {
             }
         },
         rdma_controller::config::ConnectionType::Client { message_size, .. } => loop {
-            previous_head = ring_buffer.head_ref().load_acquire();
+            let current_head = ring_buffer.head_ref().load_acquire();
             if let Some(reader) = ring_buffer.read_exact(message_size) {
                 assert_eq!(reader.len(), message_size);
 
@@ -158,15 +158,21 @@ pub fn main() {
                     if *val != expected_val {
                         eprintln!("Expected: {}, Got: {}", expected_val, val);
                         eprintln!(
-                            "Previous Buffer: {:?}, Previous Head: {}",
-                            previous_buffer, previous_head
+                            "Previous Head: {}, Current Head: {}",
+                            previous_head,
+                            current_head.head_ref().load_acquire()
                         );
-                        eprintln!("Buffer: {:?}", reader.deref());
+                        eprintln!(
+                            "Previous Buffer: {:?}, Current Buffer: {:?}",
+                            previous_buffer,
+                            reader.deref()
+                        );
                         panic!("");
                     }
                     expected_val = expected_val.wrapping_add(1);
                 }
 
+                previous_head = current_head;
                 previous_buffer.copy_from_slice(reader.deref());
 
                 unsafe {
