@@ -3,7 +3,7 @@ use std::{mem::transmute, ops::Deref};
 use super::RefRingBuffer;
 
 pub struct RingBufferReader<'a, T> {
-    pub(crate) ring_buffer: &'a RefRingBuffer<'a, T>,
+    pub(crate) ring_buffer: &'a RefRingBuffer<T>,
     pub(crate) offset: usize,
     pub(crate) limit: usize,
 }
@@ -14,8 +14,9 @@ impl<'a, T> Iterator for RingBufferReader<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.offset < self.limit {
             let item = unsafe {
-                self.ring_buffer.buffer[self.offset % self.ring_buffer.buffer.len()]
-                    .assume_init_ref()
+                self.ring_buffer.buffer.as_mut().unwrap()
+                    [self.offset % self.ring_buffer.buffer.len()]
+                .assume_init_ref()
             };
             self.offset += 1;
             Some(item)
@@ -31,9 +32,13 @@ impl<'a, T> Iterator for RingBufferReader<'a, T> {
 
 impl<T> Drop for RingBufferReader<'_, T> {
     fn drop(&mut self) {
-        self.ring_buffer
-            .head
-            .store(self.offset, std::sync::atomic::Ordering::Release);
+        unsafe {
+            self.ring_buffer
+                .head
+                .as_ref()
+                .unwrap()
+                .store(self.offset, std::sync::atomic::Ordering::Release);
+        }
     }
 }
 
@@ -44,6 +49,6 @@ impl<T> Deref for RingBufferReader<'_, T> {
         let start = self.offset % self.ring_buffer.buffer.len();
         let end = self.limit % self.ring_buffer.buffer.len();
 
-        unsafe { transmute(&(self.ring_buffer.buffer[start..end])) }
+        unsafe { transmute(&(self.ring_buffer.buffer.as_mut().unwrap()[start..end])) }
     }
 }
