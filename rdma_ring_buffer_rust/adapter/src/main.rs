@@ -152,7 +152,7 @@ pub fn main() {
                 for val in 0..reader.len() {
                     if reader[val] != expected_val {
                         eprintln!("Expected: {}, Got: {}", expected_val, reader[val]);
-                        eprintln!("Buffer: {:?}", reader.deref_mut());
+                        eprintln!("Buffer: {:?}", reader.deref());
                         panic!("");
                     }
                     expected_val = expected_val.wrapping_add(1);
