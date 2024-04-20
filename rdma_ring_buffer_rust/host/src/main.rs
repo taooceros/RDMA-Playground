@@ -79,7 +79,7 @@ fn main() {
             let reader_len = reader.len();
             dataflow += reader_len;
 
-            for data in reader {
+            for data in reader.iter() {
                 if *data != expected_data {
                     // println!(
                     //     "Data Mismatch: Expected: {}, Actual: {}; at dataflow: {}, reader_len: {}",
