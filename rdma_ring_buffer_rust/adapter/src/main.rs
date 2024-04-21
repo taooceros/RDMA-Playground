@@ -53,7 +53,7 @@ pub fn main() {
     const RINGBUFFER_LEN: usize = 2048;
 
     let mut shmem = ShmemConf::new()
-        .size(size_of::<RingBuffer<u8, RINGBUFFER_LEN>>())
+        .size(size_of::<RingBuffer<u64, RINGBUFFER_LEN>>())
         .create()
         .unwrap();
 
