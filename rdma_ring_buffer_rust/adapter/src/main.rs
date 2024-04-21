@@ -117,8 +117,6 @@ pub fn main() {
 
                     'outer: loop {
                         for wc in ib_resource.poll_cq() {
-                            println!("Received work completion: {:?}", wc);
-
                             if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
                                 eprintln!("Buffer Address: {:?}", buffer.as_ptr() as *const u64);
                                 panic!(
@@ -185,6 +183,7 @@ pub fn main() {
 
                 'outer: loop {
                     for wc in ib_resource.poll_cq() {
+                        println!("Received work completion: {:?}", wc);
                         if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
                             panic!(
                                 "wc status {}, last error {}",
