@@ -32,24 +32,24 @@ build: git_update
 	cargo build {{ if configuration == "release" {"--release"} else {""} }}
 
 server: build kill
-	./target/{{configuration}}/{{adapter_executable}} --port {{port}} -g 1 --message-size {{message_size}} > adapter.log &
-	./target/{{configuration}}/{{host_executable}} server --duration {{duration}} --batch-size {{message_size}} > host.log &
+	@just server_adapter > adapter.log &
+	@just server_host > host.log &
 
-server_adapter: build
+server_adapter:
 	./target/{{configuration}}/{{adapter_executable}} --port {{port}} -g 1
 
-server_host: build
+server_host:
 	./target/{{configuration}}/{{host_executable}} server
 
-client_adapter: build
+client_adapter:
 	./target/{{configuration}}/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1
 
-client_host: build
+client_host:
 	./target/{{configuration}}/{{host_executable}} client
 
 client: build kill
-	./target/{{configuration}}/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1 --message-size {{message_size}} > adapter.log &
-	./target/{{configuration}}/{{host_executable}} client --duration {{duration}} --batch-size {{message_size}} > host.log &
+	@just client_adapter > adapter.log &
+	@just client_host > host.log &
 
 git-commit message="update":
 	git add .

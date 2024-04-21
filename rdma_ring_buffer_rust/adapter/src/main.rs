@@ -109,8 +109,7 @@ pub fn main() {
         rdma_controller::config::ConnectionType::Server { message_size, .. } => loop {
             unsafe {
                 if let Some(mut buffer) = ring_buffer.reserve_write(message_size) {
-                    println!("Writing message");
-
+                    println!("Writing message with message_size {}", message_size);
 
                     assert_eq!(buffer.len(), message_size);
 
