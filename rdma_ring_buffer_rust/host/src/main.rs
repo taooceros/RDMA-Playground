@@ -89,10 +89,6 @@ fn main() {
             }
         },
         ConnectionType::Client => loop {
-            if clock.now() - begin > duration {
-                break;
-            }
-
             for val in buffer.iter_mut() {
                 *val = expected_data;
                 expected_data = expected_data.wrapping_add(1);
@@ -100,6 +96,10 @@ fn main() {
             }
 
             loop {
+                if clock.now() - begin > duration {
+                    break;
+                }
+
                 let write_len = ring_buffer.write(&mut buffer);
                 if write_len == batch_size {
                     break;
