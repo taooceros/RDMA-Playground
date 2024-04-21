@@ -54,12 +54,8 @@ impl<T: Copy + Send> Deref for RingBufferWriter<'_, T> {
     fn deref(&self) -> &Self::Target {
         unsafe {
             let start = self.start % self.ring_buffer.buffer_size();
-            let end = self.end % self.ring_buffer.buffer_size();
-            if self.end > 0 && end == 0 {
-                &self.ring_buffer.buffer.as_ref().unwrap()[start..]
-            } else {
-                &self.ring_buffer.buffer.as_ref().unwrap()[start..end]
-            }
+            let length = self.end - self.start;
+            &self.ring_buffer.buffer.as_mut().unwrap()[start..start + length]
         }
     }
 }
@@ -68,12 +64,8 @@ impl<T: Copy + Send> DerefMut for RingBufferWriter<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe {
             let start = self.start % self.ring_buffer.buffer_size();
-            let end = self.end % self.ring_buffer.buffer_size();
-            if self.end > 0 && end == 0 {
-                &mut self.ring_buffer.buffer.as_mut().unwrap()[start..]
-            } else {
-                &mut self.ring_buffer.buffer.as_mut().unwrap()[start..end]
-            }
+            let length = self.end - self.start;
+            &mut self.ring_buffer.buffer.as_mut().unwrap()[start..start + length]
         }
     }
 }
