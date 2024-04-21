@@ -442,7 +442,7 @@ impl IbResource {
 
                         println!("count: {}", count);
 
-                        if count >= 1 {
+                        if count >= 2 {
                             println!("Handshake done");
 
                             return;
