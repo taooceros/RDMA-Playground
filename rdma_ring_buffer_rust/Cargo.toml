@@ -1,3 +1,5 @@
 [workspace]
 members = ["adapter", "host", "shared"]
 resolver = "2"
+[profile.release]
+debug = true
