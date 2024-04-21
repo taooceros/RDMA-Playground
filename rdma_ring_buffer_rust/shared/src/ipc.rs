@@ -13,6 +13,10 @@ pub struct Ipc {
 
 impl Ipc {
     pub fn create(path: impl AsRef<Path>) -> Ipc {
+        if path.as_ref().exists() {
+            fs::remove_file(path.as_ref()).unwrap();
+        }
+
         let listener = UnixListener::bind(path).unwrap();
 
         Ipc {
