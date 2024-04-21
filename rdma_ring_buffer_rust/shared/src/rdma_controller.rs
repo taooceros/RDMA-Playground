@@ -161,8 +161,8 @@ impl IbResource {
                 recv_cq: self.cq,
                 // srq: self.srq,
                 cap: ibv_qp_cap {
-                    max_send_wr: 8192,
-                    max_recv_wr: 8192,
+                    max_send_wr: 2000,
+                    max_recv_wr: 2000,
                     max_send_sge: 3,
                     max_recv_sge: 3,
                     ..zeroed()
@@ -177,6 +177,8 @@ impl IbResource {
                 println!("last OS error: {os_error:?}");
                 panic!("Failed to create queue pair");
             }
+
+            println!("Max Inline Data: {}", qp_init_attr.cap.max_inline_data);
 
             self.connect_dest(config).unwrap();
 
