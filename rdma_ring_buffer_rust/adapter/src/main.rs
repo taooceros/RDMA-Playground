@@ -168,7 +168,7 @@ pub fn main() {
                 }
 
                 previous_head = current_head;
-                previous_buffer.copy_from_slice(reader.deref());
+                // previous_buffer.copy_from_slice(reader.deref());
 
                 unsafe {
                     ib_resource
@@ -194,6 +194,4 @@ pub fn main() {
             }
         },
     }
-
-    println!("Finish testing");
 }
