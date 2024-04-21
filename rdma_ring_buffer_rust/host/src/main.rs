@@ -110,7 +110,7 @@ fn main() {
         },
     }
 
-    println!("Readed Data: {}", dataflow);
+    println!("Process Data: {}", dataflow);
     println!(
         "Throughput: {} MB/s",
         dataflow as f64 / duration.as_secs_f64() / 1024.0 / 1024.0
