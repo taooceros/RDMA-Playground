@@ -92,7 +92,7 @@ impl<T: Send + Copy> RefRingBuffer<T> {
 
             let buffer_size = self.buffer_size();
 
-            let mut avaliable = buffer_size - (tail - head);
+            let avaliable = buffer_size - (tail - head);
 
             let write_len = data.len().min(avaliable);
 

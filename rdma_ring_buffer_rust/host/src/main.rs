@@ -101,7 +101,12 @@ fn main() {
                 // println!("Write value: {}", buffer[i]);
             }
 
-            ring_buffer.write(&mut buffer);
+            loop {
+                let write_len = ring_buffer.write(&mut buffer);
+                if write_len == batch_size {
+                    break;
+                }
+            }
 
             dataflow += batch_size;
         },
