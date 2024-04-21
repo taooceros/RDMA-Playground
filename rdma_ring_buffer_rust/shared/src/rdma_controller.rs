@@ -26,6 +26,8 @@ use self::{
 pub mod config;
 mod qp_info;
 
+pub mod send;
+
 mod memory_region;
 
 pub struct IbResource {
@@ -450,52 +452,6 @@ impl IbResource {
                     }
                 }
             }
-        }
-    }
-
-    // Safety: data must be part of the memory region
-    pub unsafe fn post_send(
-        &mut self,
-        wr_id: u64,
-        mr: &mut MemoryRegion,
-        data: &[(impl FromBytes + AsBytes)],
-        signal: bool,
-    ) -> io::Result<()> {
-        unsafe {
-            let mut bad_send_wr = zeroed();
-
-            let lkey = mr.mr.as_ref().unwrap().lkey;
-
-            let u8_ref = data.as_bytes();
-
-            let mut list = ibv_sge {
-                addr: u8_ref.as_ptr() as u64,
-                length: u8_ref.len().try_into().unwrap(),
-                lkey,
-            };
-
-            let send_flags = if signal {
-                ibv_send_flags::IBV_SEND_SIGNALED.0
-            } else {
-                0
-            };
-
-            let mut send_wr = ibv_send_wr {
-                wr_id,
-                sg_list: &mut list,
-                num_sge: 1,
-                opcode: ibv_wr_opcode::IBV_WR_SEND,
-                send_flags,
-                ..zeroed()
-            };
-
-            let errno = ibv_post_send(self.qp, &mut send_wr, &mut bad_send_wr);
-
-            if errno != 0 {
-                return Err(io::Error::last_os_error());
-            }
-
-            return Ok(());
         }
     }
 

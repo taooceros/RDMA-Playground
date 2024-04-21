@@ -113,7 +113,7 @@ fn main() {
     println!("Process Data: {}", dataflow);
     println!(
         "Throughput: {} MB/s",
-        dataflow as f64 / duration.as_secs_f64() / 1024.0 / 1024.0
+        (dataflow * size_of::<u64>()) as f64 / duration.as_secs_f64() / 1024.0 / 1024.0
     );
 
     println!("Finished RDMA Ring Buffer Test");
