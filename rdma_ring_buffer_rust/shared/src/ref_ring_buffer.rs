@@ -106,26 +106,30 @@ impl<T: Send + Copy> RefRingBuffer<T> {
 
             let start = tail % buffer_size;
 
-            unsafe {
-                if start + write_len <= buffer_size {
-                    ptr::copy_nonoverlapping(
-                        data.as_ptr(),
-                        &mut self.buffer.as_mut().unwrap()[start] as *mut MaybeUninit<T> as *mut T,
-                        write_len,
-                    );
-                } else {
-                    let end = buffer_size - start;
-                    ptr::copy_nonoverlapping(
-                        data.as_ptr(),
-                        self.buffer.as_mut().unwrap().as_mut_ptr().add(start) as *mut T,
-                        end,
-                    );
-                    ptr::copy_nonoverlapping(
-                        data.as_ptr().add(end),
-                        self.buffer.as_mut().unwrap().as_mut_ptr() as *mut T,
-                        write_len - end,
-                    );
-                }
+            // unsafe {
+            //     if start + write_len <= buffer_size {
+            //         ptr::copy_nonoverlapping(
+            //             data.as_ptr(),
+            //             &mut self.buffer.as_mut().unwrap()[start] as *mut MaybeUninit<T> as *mut T,
+            //             write_len,
+            //         );
+            //     } else {
+            //         let end = buffer_size - start;
+            //         ptr::copy_nonoverlapping(
+            //             data.as_ptr(),
+            //             self.buffer.as_mut().unwrap().as_mut_ptr().add(start) as *mut T,
+            //             end,
+            //         );
+            //         ptr::copy_nonoverlapping(
+            //             data.as_ptr().add(end),
+            //             self.buffer.as_mut().unwrap().as_mut_ptr() as *mut T,
+            //             write_len - end,
+            //         );
+            //     }
+            // }
+
+            for i in 0..write_len {
+                self.buffer.as_mut().unwrap()[start + i].write(data[i]);
             }
 
             self.tail_ref().store_release(tail + write_len);
