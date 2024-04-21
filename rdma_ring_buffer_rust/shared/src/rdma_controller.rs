@@ -36,7 +36,7 @@ pub struct IbResource {
     mr: *mut ibv_mr,
     cq: *mut ibv_cq,
     qp: *mut ibv_qp,
-    srq: *mut ibv_srq,
+    // srq: *mut ibv_srq,
     port_attr: MaybeUninit<ibv_port_attr>,
     dev_attr: MaybeUninit<ibv_device_attr>,
     state: State,
@@ -58,7 +58,7 @@ impl IbResource {
             mr: null_mut(),
             cq: null_mut(),
             qp: null_mut(),
-            srq: null_mut(),
+            // srq: null_mut(),
             port_attr: MaybeUninit::zeroed(),
             dev_attr: MaybeUninit::zeroed(),
             state: State::Init,
@@ -133,13 +133,13 @@ impl IbResource {
             ibv_srq_init_attr.attr.max_wr = self.dev_attr.assume_init().max_srq_wr as u32;
             ibv_srq_init_attr.attr.max_sge = 1;
 
-            self.srq = ibv_create_srq(self.pd, &mut ibv_srq_init_attr);
+            // self.srq = ibv_create_srq(self.pd, &mut ibv_srq_init_attr);
 
-            if self.srq.is_null() {
-                let os_error = std::io::Error::last_os_error();
-                println!("last OS error: {os_error:?}");
-                panic!("Failed to create shared receive queue");
-            }
+            // if self.srq.is_null() {
+            //     let os_error = std::io::Error::last_os_error();
+            //     println!("last OS error: {os_error:?}");
+            //     panic!("Failed to create shared receive queue");
+            // }
 
             // create qp
 
@@ -151,7 +151,7 @@ impl IbResource {
                 qp_type: ibv_qp_type::IBV_QPT_RC,
                 send_cq: self.cq,
                 recv_cq: self.cq,
-                srq: self.srq,
+                // srq: self.srq,
                 cap: ibv_qp_cap {
                     max_send_wr: 8192,
                     max_recv_wr: 8192,
@@ -425,7 +425,7 @@ impl IbResource {
             self.post_send(HANDSHAKE_WR_ID, &mut mr, &mut buffer[0..1], true)
                 .expect("Failed to post send on Handshake");
 
-            self.post_srq_recv(HANDSHAKE_WR_ID, &mut mr, Out::from(&mut buffer[1..2]))
+            self.post_recv(HANDSHAKE_WR_ID, &mut mr, Out::from(&mut buffer[1..2]))
                 .expect("Failed to post recv on Handshake");
 
             let mut count = 0;
@@ -516,50 +516,50 @@ impl IbResource {
         }
     }
 
-    pub unsafe fn post_srq_recv<'a, T: FromBytes>(
-        &mut self,
-        wr_id: u64,
-        mr: &mut MemoryRegion,
-        buffer: Out<'a, [T]>,
-    ) -> io::Result<()> {
-        unsafe {
-            let mut bad_recv_wr = null_mut();
+    // pub unsafe fn post_srq_recv<'a, T: FromBytes>(
+    //     &mut self,
+    //     wr_id: u64,
+    //     mr: &mut MemoryRegion,
+    //     buffer: Out<'a, [T]>,
+    // ) -> io::Result<()> {
+    //     unsafe {
+    //         let mut bad_recv_wr = null_mut();
 
-            let lkey = mr.mr.as_ref().unwrap().lkey;
+    //         let lkey = mr.mr.as_ref().unwrap().lkey;
 
-            let buffer_len = buffer.len();
+    //         let buffer_len = buffer.len();
 
-            let mut pointer = buffer.as_bytes_out();
+    //         let mut pointer = buffer.as_bytes_out();
 
-            println!(
-                "Posting SRQ recv with buffer: {:?} and length: {} with data length {}",
-                pointer,
-                pointer.len(),
-                buffer_len
-            );
+    //         println!(
+    //             "Posting SRQ recv with buffer: {:?} and length: {} with data length {}",
+    //             pointer,
+    //             pointer.len(),
+    //             buffer_len
+    //         );
 
-            let mut list = ibv_sge {
-                addr: pointer.as_mut_ptr() as *mut u8 as u64,
-                length: pointer.len().try_into().unwrap(),
-                lkey,
-            };
+    //         let mut list = ibv_sge {
+    //             addr: pointer.as_mut_ptr() as *mut u8 as u64,
+    //             length: pointer.len().try_into().unwrap(),
+    //             lkey,
+    //         };
 
-            let mut recv_wr = ibv_recv_wr {
-                wr_id,
-                sg_list: &mut list,
-                num_sge: 1,
-                ..zeroed()
-            };
+    //         let mut recv_wr = ibv_recv_wr {
+    //             wr_id,
+    //             sg_list: &mut list,
+    //             num_sge: 1,
+    //             ..zeroed()
+    //         };
 
-            let errno = ibv_post_srq_recv(self.srq, &mut recv_wr, &mut bad_recv_wr);
+    //         let errno = ibv_post_srq_recv(self.srq, &mut recv_wr, &mut bad_recv_wr);
 
-            if errno != 0 {
-                return Err(io::Error::last_os_error());
-            }
+    //         if errno != 0 {
+    //             return Err(io::Error::last_os_error());
+    //         }
 
-            return Ok(());
-        }
-    }
+    //         return Ok(());
+    //     }
+    // }
 }
 
 pub struct RdmaHandShake {

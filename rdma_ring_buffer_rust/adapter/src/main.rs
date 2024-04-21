@@ -114,7 +114,7 @@ pub fn main() {
                     assert_eq!(buffer.len(), message_size);
 
                     ib_resource
-                        .post_srq_recv(2, &mut mr, Out::<'_, [u64]>::from(buffer.deref_mut()))
+                        .post_recv(2, &mut mr, Out::<'_, [u64]>::from(buffer.deref_mut()))
                         .expect("Failed to post recv");
 
                     'outer: loop {

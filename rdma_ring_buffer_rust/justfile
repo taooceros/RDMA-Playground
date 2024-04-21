@@ -11,8 +11,10 @@ message_size := env_var('MESSAGE_SIZE')
 adapter_executable := "rdma_adapter"
 host_executable := "rdma_host"
 
+alias b := build
 alias s := server
 alias c := client
+alias k := kill
 
 alias ch := client_host
 alias ca := client_adapter
