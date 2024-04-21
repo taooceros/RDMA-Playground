@@ -1,6 +1,6 @@
 server_ip := "192.168.2.1"
 port := "12873"
-duration := "1"
+duration := "3"
 
 adapter_executable := "rdma_adapter"
 host_executable := "rdma_host"
