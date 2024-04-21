@@ -11,14 +11,13 @@
             "program": "${workspaceFolder}/target/debug/rdma_adapter",
             "args": [
                 "-s",
-                "${env:SERVER_IP}",
+                "192.168.2.3",
                 "-p",
-                "${env:SERVER_PORT}",
+                "12873",
                 "--message-size",
-                "${env:MESSAGE_SIZE}",
+                "256",
             ],
-            "envFile": ".env",
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
         }
     ]
 }

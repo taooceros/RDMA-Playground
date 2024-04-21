@@ -526,12 +526,16 @@ impl IbResource {
             let mut bad_recv_wr = null_mut();
 
             let lkey = mr.mr.as_ref().unwrap().lkey;
+
+            let buffer_len = buffer.len();
+
             let mut pointer = buffer.as_bytes_out();
 
             println!(
-                "Posting SRQ recv with buffer: {:?} and length: {}",
+                "Posting SRQ recv with buffer: {:?} and length: {} with data length {}",
                 pointer,
-                pointer.len()
+                pointer.len(),
+                buffer_len
             );
 
             let mut list = ibv_sge {
