@@ -1,4 +1,7 @@
-use std::fmt::Debug;
+use std::{
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+};
 
 use rdma_sys::ibv_wc;
 
@@ -18,5 +21,19 @@ impl Debug for WorkCompletion {
 impl From<ibv_wc> for WorkCompletion {
     fn from(wc: ibv_wc) -> Self {
         WorkCompletion(wc)
+    }
+}
+
+impl Deref for WorkCompletion {
+    type Target = ibv_wc;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for WorkCompletion {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }

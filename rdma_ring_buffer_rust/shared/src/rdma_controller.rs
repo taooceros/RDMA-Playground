@@ -477,7 +477,7 @@ impl IbResource {
 
             wc_buffer[..num_polled as usize]
                 .iter_mut()
-                .map(|wc| WorkCompletion::from(wc.assume_init()))
+                .map(|wc| WorkCompletion::from(wc.assume_init_read()))
                 .collect()
         }
     }
