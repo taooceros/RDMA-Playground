@@ -81,6 +81,7 @@ fn main() {
 
             for data in reader.iter() {
                 if *data != expected_data {
+                    println!("Reader {:?}", reader);
                     panic!("Data mismatch: expected {}, got {}", expected_data, *data);
                 }
 
