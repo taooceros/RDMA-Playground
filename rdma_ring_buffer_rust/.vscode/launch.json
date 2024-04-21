@@ -8,13 +8,14 @@
             "type": "lldb",
             "request": "launch",
             "name": "Client Adapter",
-            "program": "${workspaceFolder}/debug/rdma_adapter",
+            "program": "${workspaceFolder}/target/debug/rdma_adapter",
             "args": [
-                "client",
                 "-s",
                 "192.168.2.3",
                 "-p",
-                "12873"
+                "12873",
+                "--message-size",
+                "256"
             ],
             "cwd": "${workspaceFolder}"
         }

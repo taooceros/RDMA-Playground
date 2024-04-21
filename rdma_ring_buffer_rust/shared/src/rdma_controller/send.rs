@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::{io, mem::zeroed};
 
 use rdma_sys::*;
@@ -11,7 +12,7 @@ impl IbResource {
         &mut self,
         wr_id: u64,
         mr: &mut MemoryRegion,
-        data: &[(impl FromBytes + AsBytes)],
+        data: &[(impl FromBytes + AsBytes + Debug)],
         signal: bool,
     ) -> io::Result<()> {
         unsafe {
@@ -41,6 +42,12 @@ impl IbResource {
                 send_flags,
                 ..zeroed()
             };
+
+            println!(
+                "Posting Send with buffer: {:?} and length: {}",
+                data,
+                data.len()
+            );
 
             let errno = ibv_post_send(self.qp, &mut send_wr, &mut bad_send_wr);
 

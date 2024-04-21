@@ -8,6 +8,12 @@ host_executable := "rdma_host"
 alias s := server
 alias c := client
 
+alias ch := client_host
+alias ca := client_adapter
+
+alias sh := server_host
+alias sa := server_adapter
+
 alias gc := git-commit
 alias qs := quick-server
 
