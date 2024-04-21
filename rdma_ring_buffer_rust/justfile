@@ -1,6 +1,12 @@
-server_ip := "192.168.2.3"
-port := "12873"
-duration := "3"
+set dotenv-load
+
+server_ip := env_var('SERVER_IP')
+
+port := env_var('SERVER_PORT')
+duration := env_var('DURATION')
+
+message_size := env_var('MESSAGE_SIZE')
+
 
 adapter_executable := "rdma_adapter"
 host_executable := "rdma_host"

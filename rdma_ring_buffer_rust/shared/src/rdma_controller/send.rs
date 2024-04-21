@@ -12,7 +12,7 @@ impl IbResource {
         &mut self,
         wr_id: u64,
         mr: &mut MemoryRegion,
-        data: &[(impl FromBytes + AsBytes + Debug)],
+        data: &[(impl FromBytes + AsBytes)],
         signal: bool,
     ) -> io::Result<()> {
         unsafe {
@@ -21,6 +21,12 @@ impl IbResource {
             let lkey = mr.mr.as_ref().unwrap().lkey;
 
             let u8_ref = data.as_bytes();
+
+            println!(
+                "Posting Send with buffer: {:?} and length: {}",
+                u8_ref,
+                u8_ref.len()
+            );
 
             let mut list = ibv_sge {
                 addr: u8_ref.as_ptr() as u64,
@@ -42,12 +48,6 @@ impl IbResource {
                 send_flags,
                 ..zeroed()
             };
-
-            println!(
-                "Posting Send with buffer: {:?} and length: {}",
-                data,
-                data.len()
-            );
 
             let errno = ibv_post_send(self.qp, &mut send_wr, &mut bad_send_wr);
 
