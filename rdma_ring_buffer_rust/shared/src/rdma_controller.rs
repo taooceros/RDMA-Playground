@@ -436,13 +436,13 @@ impl IbResource {
                             println!("Received data: {:?}", buffer[1]);
                         }
 
-                        if wc.opcode == ibv_wc_opcode::IBV_WC_SEND {
-                            println!("Sent data: {:?}", buffer[0]);
-                        }
+                        // if wc.opcode == ibv_wc_opcode::IBV_WC_SEND {
+                        //     println!("Sent data: {:?}", buffer[0]);
+                        // }
 
                         println!("count: {}", count);
 
-                        if count >= 2 {
+                        if count >= 1 {
                             println!("Handshake done");
 
                             return;
@@ -459,6 +459,7 @@ impl IbResource {
         wr_id: u64,
         mr: &mut MemoryRegion,
         data: &[(impl FromBytes + AsBytes)],
+        
     ) -> io::Result<()> {
         unsafe {
             let mut bad_send_wr = zeroed();
