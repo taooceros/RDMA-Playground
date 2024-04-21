@@ -21,12 +21,14 @@ use self::{
     config::{Config, ConnectionType},
     memory_region::MemoryRegion,
     qp_info::DestQpInfo,
+    work_completion::WorkCompletion,
 };
 
 pub mod config;
 mod qp_info;
 
 pub mod send;
+pub mod work_completion;
 
 mod memory_region;
 
@@ -455,7 +457,7 @@ impl IbResource {
         }
     }
 
-    pub fn poll_cq(&mut self) -> Vec<ibv_wc> {
+    pub fn poll_cq(&mut self) -> Vec<WorkCompletion> {
         unsafe {
             const WC_INIT: MaybeUninit<ibv_wc> = MaybeUninit::zeroed();
 
@@ -475,7 +477,7 @@ impl IbResource {
 
             wc_buffer[..num_polled as usize]
                 .iter_mut()
-                .map(|wc| read(wc).assume_init())
+                .map(|wc| WorkCompletion::from(wc.assume_init()))
                 .collect()
         }
     }

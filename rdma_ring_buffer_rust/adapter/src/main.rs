@@ -109,8 +109,6 @@ pub fn main() {
         rdma_controller::config::ConnectionType::Server { message_size, .. } => loop {
             unsafe {
                 if let Some(mut buffer) = ring_buffer.reserve_write(message_size) {
-                    println!("Writing message with message_size {}", message_size);
-
                     assert_eq!(buffer.len(), message_size);
 
                     ib_resource
@@ -119,6 +117,8 @@ pub fn main() {
 
                     'outer: loop {
                         for wc in ib_resource.poll_cq() {
+                            println!("Received work completion: {:?}", wc);
+
                             if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
                                 eprintln!("Buffer Address: {:?}", buffer.as_ptr() as *const u64);
                                 panic!(
