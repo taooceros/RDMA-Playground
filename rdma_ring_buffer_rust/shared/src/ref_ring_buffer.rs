@@ -6,11 +6,12 @@ use std::{
     sync::{atomic::AtomicUsize, Mutex},
 };
 
-use uninit::AsMaybeUninit;
+use uninit::{extension_traits::MaybeUninitExt, AsMaybeUninit};
 
 use crate::atomic_extension::AtomicExtension;
 
-use self::writer::RingBufferWriter;
+pub mod reader;
+pub mod writer;
 
 // Safety: The Ref must not outlive the underlying RingBuffer
 pub struct RefRingBuffer<T> {
@@ -24,11 +25,11 @@ impl<T: Send + Copy> RefRingBuffer<T> {
         unsafe { self.buffer.as_ref().unwrap().len() }
     }
 
-    fn head_ref(&self) -> &AtomicUsize {
+    pub fn head_ref(&self) -> &AtomicUsize {
         unsafe { self.head.as_ref().unwrap() }
     }
 
-    fn tail_ref(&self) -> &AtomicUsize {
+    pub fn tail_ref(&self) -> &AtomicUsize {
         unsafe { self.tail.as_ref().unwrap() }
     }
 
@@ -57,8 +58,8 @@ impl<T: Send + Copy> RefRingBuffer<T> {
             // SAFETY: acquire load for tail will ensure that the data is written before this line
             Some(reader::RingBufferReader {
                 ring_buffer: self,
-                offset: head,
-                limit: head + len,
+                start: head,
+                end: head + len,
             })
         }
     }
@@ -77,8 +78,8 @@ impl<T: Send + Copy> RefRingBuffer<T> {
             // SAFETY: acquire load for tail will ensure that the data is written before this line
             reader::RingBufferReader {
                 ring_buffer: self,
-                offset: head,
-                limit: head + avaliable,
+                start: head,
+                end: head + avaliable,
             }
         }
     }
@@ -91,17 +92,13 @@ impl<T: Send + Copy> RefRingBuffer<T> {
 
             let buffer_size = self.buffer_size();
 
-            let mut avaliable = buffer_size - (tail - head);
-
-            let to_end = buffer_size - (tail % buffer_size);
-
-            avaliable = if avaliable > to_end {
-                to_end
-            } else {
-                avaliable
-            };
+            let avaliable = buffer_size - (tail - head);
 
             let write_len = data.len().min(avaliable);
+
+            if write_len == 0 {
+                return 0;
+            }
 
             let start = tail % buffer_size;
 
@@ -116,12 +113,12 @@ impl<T: Send + Copy> RefRingBuffer<T> {
                     let end = buffer_size - start;
                     ptr::copy_nonoverlapping(
                         data.as_ptr(),
-                        &mut self.buffer.as_mut().unwrap()[start] as *mut MaybeUninit<T> as *mut T,
+                        self.buffer.as_mut().unwrap().as_mut_ptr().add(start) as *mut T,
                         end,
                     );
                     ptr::copy_nonoverlapping(
                         data.as_ptr().add(end),
-                        &mut self.buffer.as_mut().unwrap()[0] as *mut MaybeUninit<T> as *mut T,
+                        self.buffer.as_mut().unwrap().as_mut_ptr() as *mut T,
                         write_len - end,
                     );
                 }
@@ -134,11 +131,7 @@ impl<T: Send + Copy> RefRingBuffer<T> {
     }
 
     // This writer will only return continuous memory slice regardless of the buffer is wrapped around
-    pub fn reserve_write(&mut self, len: usize) -> Option<RingBufferWriter<T>> {
-        RingBufferWriter::try_reserve(self, len)
+    pub fn reserve_write(&mut self, len: usize) -> Option<writer::RingBufferWriter<T>> {
+        writer::RingBufferWriter::try_reserve(self, len)
     }
 }
-
-mod reader;
-
-mod writer;

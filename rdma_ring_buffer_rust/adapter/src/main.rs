@@ -1,3 +1,4 @@
+use core::panic;
 use std::{
     io::{Read, Write},
     mem::{size_of, transmute, MaybeUninit},
@@ -16,7 +17,7 @@ use shared::{
 use shared_memory::ShmemConf;
 use uninit::out_ref::Out;
 
-use crate::command_line::GlobalArgs;
+use crate::{atomic_extension::AtomicExtension, command_line::GlobalArgs};
 
 mod atomic_extension;
 mod command_line;
@@ -49,10 +50,10 @@ pub fn main() {
 
     println!("IB setup done");
 
-    const RINGBUFFER_LEN: usize = 2048;
+    const RINGBUFFER_LEN: usize = 32768;
 
     let mut shmem = ShmemConf::new()
-        .size(size_of::<RingBuffer<u8, RINGBUFFER_LEN>>())
+        .size(size_of::<RingBuffer<u64, RINGBUFFER_LEN>>())
         .create()
         .unwrap();
 
@@ -67,7 +68,7 @@ pub fn main() {
     let ring_buffer = unsafe {
         let uninit = shmem
             .as_ptr()
-            .cast::<MaybeUninit<RingBuffer<u8, RINGBUFFER_LEN>>>()
+            .cast::<MaybeUninit<RingBuffer<u64, RINGBUFFER_LEN>>>()
             .as_mut()
             .unwrap();
 
@@ -98,19 +99,26 @@ pub fn main() {
 
     init_metadata.write_to_ipc(&mut ipc);
 
-    let batch_size = 1024;
+    let mut expected_val: u64 = 0;
+
+    let mut previous_buffer = vec![0; args.message_size];
+
+    let mut previous_head = 0;
 
     match connection_type {
         rdma_controller::config::ConnectionType::Server { message_size, .. } => loop {
             unsafe {
                 if let Some(mut buffer) = ring_buffer.reserve_write(message_size) {
+                    assert_eq!(buffer.len(), message_size);
+
                     ib_resource
-                        .post_srq_recv(2, &mut mr, Out::<'_, [u8]>::from(buffer.deref_mut()))
+                        .post_recv(2, &mut mr, Out::<'_, [u64]>::from(buffer.deref_mut()))
                         .expect("Failed to post recv");
 
                     'outer: loop {
                         for wc in ib_resource.poll_cq() {
                             if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
+                                eprintln!("Buffer Address: {:?}", buffer.as_ptr() as *const u64);
                                 panic!(
                                     "wc status {}, last error {}",
                                     wc.status,
@@ -125,21 +133,57 @@ pub fn main() {
                             }
                         }
                     }
+
+                    for val in 0..buffer.len() {
+                        if buffer[val].assume_init() != expected_val {
+                            eprintln!(
+                                "Expected: {}, Got: {}",
+                                expected_val,
+                                buffer[val].assume_init()
+                            );
+                            eprintln!(
+                                "Buffer: {:?}",
+                                transmute::<&mut [MaybeUninit<u64>], &mut [u64]>(
+                                    buffer.deref_mut()
+                                )
+                            );
+                            panic!("");
+                        }
+                        expected_val = expected_val.wrapping_add(1);
+                    }
                 }
             }
         },
         rdma_controller::config::ConnectionType::Client { message_size, .. } => loop {
+            let current_head = ring_buffer.head_ref().load_acquire();
             if let Some(reader) = ring_buffer.read_exact(message_size) {
                 assert_eq!(reader.len(), message_size);
 
+                for val in reader.iter() {
+                    if *val != expected_val {
+                        eprintln!("Expected: {}, Got: {}", expected_val, val);
+                        eprintln!(
+                            "Previous Head: {}, Previous Buffer: {:?}",
+                            previous_head, previous_buffer
+                        );
+                        eprintln!("Buffer: {:?}", reader);
+                        panic!("");
+                    }
+                    expected_val = expected_val.wrapping_add(1);
+                }
+
+                previous_head = current_head;
+                previous_buffer.copy_from_slice(reader.deref());
+
                 unsafe {
                     ib_resource
-                        .post_send(2, &mut mr, reader.deref())
+                        .post_send(2, &mut mr, reader.deref(), true)
                         .expect("Failed to post send");
                 }
 
                 'outer: loop {
                     for wc in ib_resource.poll_cq() {
+                        println!("Received work completion: {:?}", wc);
                         if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
                             panic!(
                                 "wc status {}, last error {}",
@@ -156,6 +200,4 @@ pub fn main() {
             }
         },
     }
-
-    println!("Finish testing");
 }

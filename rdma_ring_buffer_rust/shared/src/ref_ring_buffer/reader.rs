@@ -1,43 +1,30 @@
-use std::{mem::transmute, ops::Deref};
+use std::fmt::Debug;
+use std::{fmt::Formatter, mem::transmute, ops::Deref};
 
 use super::RefRingBuffer;
 
-pub struct RingBufferReader<'a, T> {
-    pub(crate) ring_buffer: &'a RefRingBuffer<T>,
-    pub(crate) offset: usize,
-    pub(crate) limit: usize,
+pub struct RingBufferReader<'a, T: Copy + Send> {
+    pub ring_buffer: &'a RefRingBuffer<T>,
+    pub start: usize,
+    pub end: usize,
 }
 
-impl<'a, T: Send + Copy> Iterator for RingBufferReader<'a, T> {
-    type Item = &'a T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.offset < self.limit {
-            let item = unsafe {
-                self.ring_buffer.buffer.as_mut().unwrap()
-                    [self.offset % self.ring_buffer.buffer_size()]
-                .assume_init_ref()
-            };
-            self.offset += 1;
-            Some(item)
-        } else {
-            None
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.limit - self.offset, Some(self.limit - self.offset))
+impl<T: Copy + Send + Debug> Debug for RingBufferReader<'_, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RingBufferReader")
+            .field("start", &self.start)
+            .field("end", &self.end)
+            .field("buffer", &self.deref())
+            .finish()
     }
 }
 
-impl<T> Drop for RingBufferReader<'_, T> {
+impl<T: Copy + Send> Drop for RingBufferReader<'_, T> {
     fn drop(&mut self) {
         unsafe {
             self.ring_buffer
-                .head
-                .as_ref()
-                .unwrap()
-                .store(self.offset, std::sync::atomic::Ordering::Release);
+                .head_ref()
+                .store(self.end, std::sync::atomic::Ordering::Release);
         }
     }
 }
@@ -46,13 +33,13 @@ impl<T: Send + Copy> Deref for RingBufferReader<'_, T> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
-        let start = self.offset % self.ring_buffer.buffer_size();
-        let end = self.limit % self.ring_buffer.buffer_size();
+        let start = self.start % self.ring_buffer.buffer_size();
+        let length = self.end - self.start;
 
-        if self.offset > 0 && end == 0 {
-            unsafe { transmute(&(self.ring_buffer.buffer.as_mut().unwrap()[start..])) }
-        } else {
-            unsafe { transmute(&(self.ring_buffer.buffer.as_mut().unwrap()[start..end])) }
+        unsafe {
+            transmute::<&[std::mem::MaybeUninit<T>], &[T]>(
+                &self.ring_buffer.buffer.as_mut().unwrap()[start..start + length],
+            )
         }
     }
 }

@@ -1,46 +1,37 @@
 use std::{
     fs::{self, File, OpenOptions},
     io::{Read, Write},
+    os::unix::net::{SocketAddr, UnixListener, UnixStream},
     path::Path,
 };
 
 pub mod ring_buffer_metadata;
 
 pub struct Ipc {
-    pipe: File,
+    pipe: UnixStream,
 }
 
 impl Ipc {
     pub fn create(path: impl AsRef<Path>) -> Ipc {
-        let path = path.as_ref();
-        if path.exists() {
-            fs::remove_file(path).unwrap();
-            println!("Removed existing fifo");
+        if path.as_ref().exists() {
+            fs::remove_file(path.as_ref()).unwrap();
         }
 
-        let c_name = std::ffi::CString::new(path.to_str().unwrap()).unwrap();
-        let c_name_ptr = c_name.as_ptr();
-        let ret = unsafe { nix::libc::mkfifo(c_name_ptr, 0o666) };
-
-        if ret < 0 {
-            panic!("Failed to create fifo");
-        }
+        let listener = UnixListener::bind(path).unwrap();
 
         Ipc {
-            pipe: OpenOptions::new().write(true).open(path).unwrap(),
+            pipe: listener.accept().unwrap().0,
         }
     }
 
     pub fn open(path: impl AsRef<Path>) -> Ipc {
-        let path = path.as_ref();
-
-        while !path.exists() {
-            std::thread::sleep(std::time::Duration::from_millis(10));
+        while !path.as_ref().exists() {
+            std::thread::sleep(std::time::Duration::from_millis(1));
         }
 
-        Ipc {
-            pipe: OpenOptions::new().read(true).open(path).unwrap(),
-        }
+        let stream = UnixStream::connect(path).unwrap();
+
+        Ipc { pipe: stream }
     }
 }
 

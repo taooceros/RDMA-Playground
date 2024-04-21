@@ -1,4 +1,4 @@
-use std::num::NonZeroI32;
+use std::num::{NonZeroU64, NonZeroUsize};
 
 use clap::{arg, command, Parser, Subcommand};
 
@@ -7,6 +7,10 @@ use clap::{arg, command, Parser, Subcommand};
 pub struct GlobalArgs {
     #[command(subcommand)]
     pub command: ConnectionType,
+    #[arg(global = true, short, long, default_value_t = NonZeroUsize::new(64).unwrap())]
+    pub batch_size: NonZeroUsize,
+    #[arg(global = true, short, long, default_value_t = NonZeroU64::new(5).unwrap())]
+    pub duration: NonZeroU64,
 }
 
 #[derive(Subcommand, Debug, Clone)]
