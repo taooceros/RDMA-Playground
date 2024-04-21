@@ -478,7 +478,7 @@ impl IbResource {
                 sg_list: &mut list,
                 num_sge: 1,
                 opcode: ibv_wr_opcode::IBV_WR_SEND,
-                send_flags: ibv_send_flags::IBV_SEND_SIGNALED.0,
+                // send_flags: ibv_send_flags::IBV_SEND_SIGNALED.0,
                 ..zeroed()
             };
 
