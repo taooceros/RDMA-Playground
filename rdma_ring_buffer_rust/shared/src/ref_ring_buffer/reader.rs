@@ -34,12 +34,12 @@ impl<T: Send + Copy> Deref for RingBufferReader<'_, T> {
 
     fn deref(&self) -> &Self::Target {
         let start = self.start % self.ring_buffer.buffer_size();
-        let end = self.end % self.ring_buffer.buffer_size();
+        let length = self.end - self.start;
 
-        if self.end > 0 && end == 0 {
-            unsafe { transmute(&(self.ring_buffer.buffer.as_ref().unwrap()[start..])) }
-        } else {
-            unsafe { transmute(&(self.ring_buffer.buffer.as_ref().unwrap()[start..end])) }
+        unsafe {
+            transmute::<&[std::mem::MaybeUninit<T>], &[T]>(
+                &self.ring_buffer.buffer.as_mut().unwrap()[start..start + length],
+            )
         }
     }
 }
