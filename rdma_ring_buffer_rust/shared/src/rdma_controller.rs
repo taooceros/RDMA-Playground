@@ -120,7 +120,13 @@ impl IbResource {
 
             // create cq
 
-            self.cq = ibv_create_cq(self.ctx, 1, null_mut(), null_mut(), 0);
+            self.cq = ibv_create_cq(
+                self.ctx,
+                self.dev_attr.assume_init_ref().max_cqe,
+                null_mut(),
+                null_mut(),
+                0,
+            );
 
             if self.cq.is_null() {
                 let os_error = std::io::Error::last_os_error();
