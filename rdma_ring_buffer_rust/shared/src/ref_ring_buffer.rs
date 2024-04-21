@@ -96,6 +96,10 @@ impl<T: Send + Copy> RefRingBuffer<T> {
 
             let write_len = data.len().min(avaliable);
 
+            if write_len == 0 {
+                return 0;
+            }
+
             let start = tail % buffer_size;
 
             // unsafe {
