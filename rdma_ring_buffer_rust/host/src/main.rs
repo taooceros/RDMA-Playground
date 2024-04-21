@@ -95,8 +95,8 @@ fn main() {
                 break;
             }
 
-            for i in 0..batch_size {
-                buffer[i] = expected_data;
+            for val in buffer.iter_mut() {
+                *val = expected_data;
                 expected_data = expected_data.wrapping_add(1);
                 // println!("Write value: {}", buffer[i]);
             }
