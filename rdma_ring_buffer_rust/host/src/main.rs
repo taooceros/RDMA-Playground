@@ -51,7 +51,7 @@ fn main() {
     let head_ref = unsafe { AtomicUsize::from_ptr(shmem_ptr.cast()) };
     let tail_ref = unsafe { AtomicUsize::from_ptr(shmem_ptr.add(size_of::<usize>()).cast()) };
 
-    let mut ring_buffer = RefRingBuffer::<u8>::from_raw_parts(head_ref, tail_ref, unsafe {
+    let mut ring_buffer = RefRingBuffer::<u64>::from_raw_parts(head_ref, tail_ref, unsafe {
         slice::from_raw_parts_mut(
             shmem_ptr.add(size_of::<usize>() * 2).cast(),
             metadata.ring_buffer_len,
@@ -66,7 +66,7 @@ fn main() {
     let begin = clock.now();
     let mut dataflow = 0;
 
-    let mut expected_data: u8 = 0;
+    let mut expected_data: u64 = 0;
 
     match connection_type {
         ConnectionType::Server => loop {
@@ -112,7 +112,7 @@ fn main() {
         },
     }
 
-    println!("Pass Data: {}", dataflow);
+    println!("Readed Data: {}", dataflow);
     println!(
         "Throughput: {} MB/s",
         dataflow as f64 / duration.as_secs_f64() / 1024.0 / 1024.0

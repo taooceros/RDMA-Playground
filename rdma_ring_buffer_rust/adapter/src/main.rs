@@ -68,7 +68,7 @@ pub fn main() {
     let ring_buffer = unsafe {
         let uninit = shmem
             .as_ptr()
-            .cast::<MaybeUninit<RingBuffer<u8, RINGBUFFER_LEN>>>()
+            .cast::<MaybeUninit<RingBuffer<u64, RINGBUFFER_LEN>>>()
             .as_mut()
             .unwrap();
 
@@ -99,7 +99,7 @@ pub fn main() {
 
     init_metadata.write_to_ipc(&mut ipc);
 
-    let mut expected_val: u8 = 0;
+    let mut expected_val: u64 = 0;
 
     let mut previous_buffer = vec![0; args.message_size];
 
@@ -110,7 +110,7 @@ pub fn main() {
             unsafe {
                 if let Some(mut buffer) = ring_buffer.reserve_write(message_size) {
                     ib_resource
-                        .post_srq_recv(2, &mut mr, Out::<'_, [u8]>::from(buffer.deref_mut()))
+                        .post_srq_recv(2, &mut mr, Out::<'_, [u64]>::from(buffer.deref_mut()))
                         .expect("Failed to post recv");
 
                     'outer: loop {
@@ -140,7 +140,9 @@ pub fn main() {
                             );
                             eprintln!(
                                 "Buffer: {:?}",
-                                transmute::<&mut [MaybeUninit<u8>], &mut [u8]>(buffer.deref_mut())
+                                transmute::<&mut [MaybeUninit<u64>], &mut [u64]>(
+                                    buffer.deref_mut()
+                                )
                             );
                             panic!("");
                         }
@@ -168,7 +170,7 @@ pub fn main() {
                 }
 
                 previous_head = current_head;
-                // previous_buffer.copy_from_slice(reader.deref());
+                previous_buffer.copy_from_slice(reader.deref());
 
                 unsafe {
                     ib_resource
