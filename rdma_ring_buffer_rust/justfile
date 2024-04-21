@@ -31,7 +31,7 @@ git_update:
 build: git_update
 	cargo build {{ if configuration == "release" {"--release"} else {""} }}
 
-server message_size="64": build kill
+server: build kill
 	./target/{{configuration}}/{{adapter_executable}} --port {{port}} -g 1 --message-size {{message_size}} > adapter.log &
 	./target/{{configuration}}/{{host_executable}} server --duration {{duration}} --batch-size {{message_size}} > host.log &
 
@@ -47,7 +47,7 @@ client_adapter: build
 client_host: build
 	./target/{{configuration}}/{{host_executable}} client
 
-client message_size="64": build kill
+client: build kill
 	./target/{{configuration}}/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1 --message-size {{message_size}} > adapter.log &
 	./target/{{configuration}}/{{host_executable}} client --duration {{duration}} --batch-size {{message_size}} > host.log &
 
