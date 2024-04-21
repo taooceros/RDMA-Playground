@@ -88,7 +88,7 @@ fn main() {
                 expected_data = expected_data.wrapping_add(1);
             }
         },
-        ConnectionType::Client => loop {
+        ConnectionType::Client => 'outer: loop {
             for val in buffer.iter_mut() {
                 *val = expected_data;
                 expected_data = expected_data.wrapping_add(1);
@@ -97,7 +97,7 @@ fn main() {
 
             loop {
                 if clock.now() - begin > duration {
-                    break;
+                    break 'outer;
                 }
 
                 let write_len = ring_buffer.write(&mut buffer);
