@@ -157,8 +157,8 @@ impl IbResource {
                 cap: ibv_qp_cap {
                     max_send_wr: 8192,
                     max_recv_wr: 8192,
-                    max_send_sge: 1,
-                    max_recv_sge: 1,
+                    max_send_sge: 3,
+                    max_recv_sge: 3,
                     ..zeroed()
                 },
                 ..zeroed()
