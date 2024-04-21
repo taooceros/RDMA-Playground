@@ -94,14 +94,6 @@ impl<T: Send + Copy> RefRingBuffer<T> {
 
             let mut avaliable = buffer_size - (tail - head);
 
-            let to_end = buffer_size - (tail % buffer_size);
-
-            avaliable = if avaliable > to_end {
-                to_end
-            } else {
-                avaliable
-            };
-
             let write_len = data.len().min(avaliable);
 
             let start = tail % buffer_size;
