@@ -81,10 +81,7 @@ fn main() {
 
             for data in reader.iter() {
                 if *data != expected_data {
-                    // println!(
-                    //     "Data Mismatch: Expected: {}, Actual: {}; at dataflow: {}, reader_len: {}",
-                    //     expected_data, data, dataflow, reader_len
-                    // );
+                    panic!("Data mismatch: expected {}, got {}", expected_data, *data);
                 }
 
                 expected_data = expected_data.wrapping_add(1);
