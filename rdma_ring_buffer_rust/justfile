@@ -36,16 +36,16 @@ server: build kill
 	@just server_host > host.log &
 
 server_adapter:
-	./target/{{configuration}}/{{adapter_executable}} --port {{port}} -g 1 --duration {{duration}} --message-size {{message_size}}
+	./target/{{configuration}}/{{adapter_executable}} --port {{port}} -g 1 --message-size {{message_size}}
 
 server_host:
-	./target/{{configuration}}/{{host_executable}} server --batch-size {{message_size}}
+	./target/{{configuration}}/{{host_executable}} server --batch-size {{message_size}} --duration {{duration}} 
 
 client_adapter:
-	./target/{{configuration}}/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1 --duration {{duration}} --message-size {{message_size}}
+	./target/{{configuration}}/{{adapter_executable}} -s {{server_ip}} --port {{port}} -g 1 --message-size {{message_size}}
 
 client_host:
-	./target/{{configuration}}/{{host_executable}} client --batch-size {{message_size}}
+	./target/{{configuration}}/{{host_executable}} client --batch-size {{message_size}} --duration {{duration}} 
 
 client: build kill
 	@just client_adapter > adapter.log &
