@@ -420,7 +420,7 @@ impl IbResource {
         unsafe {
             buffer[0] = random();
 
-            self.post_send(HANDSHAKE_WR_ID, &mut mr, &mut buffer[0..1])
+            self.post_send(HANDSHAKE_WR_ID, &mut mr, &mut buffer[0..1], true)
                 .expect("Failed to post send on Handshake");
 
             self.post_srq_recv(HANDSHAKE_WR_ID, &mut mr, Out::from(&mut buffer[1..2]))
@@ -459,7 +459,7 @@ impl IbResource {
         wr_id: u64,
         mr: &mut MemoryRegion,
         data: &[(impl FromBytes + AsBytes)],
-        
+        signal: bool,
     ) -> io::Result<()> {
         unsafe {
             let mut bad_send_wr = zeroed();
@@ -474,12 +474,18 @@ impl IbResource {
                 lkey,
             };
 
+            let send_flags = if signal {
+                ibv_send_flags::IBV_SEND_SIGNALED.0
+            } else {
+                0
+            };
+
             let mut send_wr = ibv_send_wr {
                 wr_id,
                 sg_list: &mut list,
                 num_sge: 1,
                 opcode: ibv_wr_opcode::IBV_WR_SEND,
-                send_flags: ibv_send_flags::IBV_SEND_SIGNALED.0,
+                send_flags,
                 ..zeroed()
             };
 

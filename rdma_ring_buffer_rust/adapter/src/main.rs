@@ -109,7 +109,6 @@ pub fn main() {
         rdma_controller::config::ConnectionType::Server { message_size, .. } => loop {
             unsafe {
                 if let Some(mut buffer) = ring_buffer.reserve_write(message_size) {
-
                     assert_eq!(buffer.len(), message_size);
 
                     ib_resource
@@ -178,25 +177,25 @@ pub fn main() {
 
                 unsafe {
                     ib_resource
-                        .post_send(2, &mut mr, reader.deref())
+                        .post_send(2, &mut mr, reader.deref(), false)
                         .expect("Failed to post send");
                 }
 
-                'outer: loop {
-                    for wc in ib_resource.poll_cq() {
-                        if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
-                            panic!(
-                                "wc status {}, last error {}",
-                                wc.status,
-                                std::io::Error::last_os_error()
-                            );
-                        }
+                // 'outer: loop {
+                //     for wc in ib_resource.poll_cq() {
+                //         if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
+                //             panic!(
+                //                 "wc status {}, last error {}",
+                //                 wc.status,
+                //                 std::io::Error::last_os_error()
+                //             );
+                //         }
 
-                        if wc.opcode == rdma_sys::ibv_wc_opcode::IBV_WC_SEND {
-                            break 'outer;
-                        }
-                    }
-                }
+                //         if wc.opcode == rdma_sys::ibv_wc_opcode::IBV_WC_SEND {
+                //             break 'outer;
+                //         }
+                //     }
+                // }
             }
         },
     }
