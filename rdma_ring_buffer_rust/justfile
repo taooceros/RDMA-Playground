@@ -41,7 +41,7 @@ client message_size="64": build kill
 
 git-commit message="update":
 	git add .
-	git commit -am "{{message}}"
+	git commit -am "{{message}}" || true
 	git push
 
 quick-server message="update": (git-commit message) && server
