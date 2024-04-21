@@ -6,7 +6,7 @@ use std::{
     sync::{atomic::AtomicUsize, Mutex},
 };
 
-use uninit::AsMaybeUninit;
+use uninit::{extension_traits::MaybeUninitExt, AsMaybeUninit};
 
 use crate::atomic_extension::AtomicExtension;
 
@@ -117,12 +117,12 @@ impl<T: Send + Copy> RefRingBuffer<T> {
                     let end = buffer_size - start;
                     ptr::copy_nonoverlapping(
                         data.as_ptr(),
-                        &mut self.buffer.as_mut().unwrap()[start] as *mut MaybeUninit<T> as *mut T,
+                        self.buffer.as_mut().unwrap().as_mut_ptr().add(start) as *mut T,
                         end,
                     );
                     ptr::copy_nonoverlapping(
                         data.as_ptr().add(end),
-                        &mut self.buffer.as_mut().unwrap()[0] as *mut MaybeUninit<T> as *mut T,
+                        self.buffer.as_mut().unwrap().as_mut_ptr() as *mut T,
                         write_len - end,
                     );
                 }
