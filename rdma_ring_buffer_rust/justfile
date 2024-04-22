@@ -25,7 +25,7 @@ alias sa := server_adapter
 alias gc := git-commit
 alias qs := quick-server
 
-configuration := "debug"
+configuration := "release"
 
 git_update:
 	git pull
