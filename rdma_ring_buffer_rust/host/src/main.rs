@@ -2,6 +2,7 @@ use std::{
     fs::File,
     io::{Read, Write},
     mem::{align_of, size_of, MaybeUninit},
+    ptr::metadata,
     slice,
     sync::atomic::AtomicUsize,
     time::Duration,
@@ -40,7 +41,8 @@ fn main() {
 
     println!("Ring Buffer Metadata: {:?}", metadata);
 
-    let shmem_os_id = std::str::from_utf8(&metadata.shared_memory_name).unwrap();
+    let shmem_os_id =
+        std::str::from_utf8(&metadata.shared_memory_name[..metadata.shared_memory_len]).unwrap();
 
     let shmem = ShmemConf::new().os_id(shmem_os_id).open().unwrap();
 
