@@ -237,6 +237,8 @@ impl IbResource {
 
         self.set_qp_rts(0, 1, dest_info)?;
 
+        self.handshake();
+
         Ok(())
     }
 
@@ -285,6 +287,8 @@ impl IbResource {
             println!("Received {:?}", dest_info);
 
             self.set_qp_rts(0, 1, dest_info)?;
+
+            self.handshake();
         }
 
         Ok(())

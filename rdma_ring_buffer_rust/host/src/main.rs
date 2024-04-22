@@ -48,12 +48,26 @@ fn main() {
 
     let shmem_ptr = shmem.as_ptr();
 
-    let head_ref = unsafe { AtomicUsize::from_ptr(shmem_ptr.cast()) };
-    let tail_ref = unsafe { AtomicUsize::from_ptr(shmem_ptr.add(size_of::<usize>()).cast()) };
+    let head_ref = unsafe {
+        AtomicUsize::from_ptr(
+            shmem_ptr
+                .byte_add(metadata.head_offset.try_into().unwrap())
+                .cast(),
+        )
+    };
+    let tail_ref = unsafe {
+        AtomicUsize::from_ptr(
+            shmem_ptr
+                .byte_add(metadata.tail_offset.try_into().unwrap())
+                .cast(),
+        )
+    };
 
     let mut ring_buffer = RefRingBuffer::<u64>::from_raw_parts(head_ref, tail_ref, unsafe {
         slice::from_raw_parts_mut(
-            shmem_ptr.add(size_of::<usize>() * 2).cast(),
+            shmem_ptr
+                .byte_add(metadata.buffer_offset.try_into().unwrap())
+                .cast(),
             metadata.ring_buffer_len,
         )
     });

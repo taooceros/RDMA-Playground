@@ -1,7 +1,7 @@
 use core::panic;
 use std::{
     io::{Read, Write},
-    mem::{size_of, transmute, MaybeUninit},
+    mem::{offset_of, size_of, transmute, MaybeUninit},
     net::IpAddr,
     ops::{Deref, DerefMut},
     str::FromStr,
@@ -90,9 +90,15 @@ pub fn main() {
 
     println!("IPC created");
 
+    let mut name_buffer = [0u8; 32];
+    name_buffer.copy_from_slice(shmem.get_os_id().as_bytes());
+
     let init_metadata = RingBufferMetaData {
+        head_offset: offset_of!(RingBuffer<u64, RINGBUFFER_LEN>, head),
+        tail_offset: offset_of!(RingBuffer<u64, RINGBUFFER_LEN>, tail),
+        buffer_offset: offset_of!(RingBuffer<u64, RINGBUFFER_LEN>, buffer),
         ring_buffer_len: RINGBUFFER_LEN,
-        shared_memory_name: shmem.get_os_id().as_bytes().into(),
+        shared_memory_name: name_buffer,
     };
 
     println!("Metadata: {:?}", init_metadata);
@@ -117,8 +123,6 @@ pub fn main() {
 
                     'outer: loop {
                         for wc in ib_resource.poll_cq() {
-                            
-
                             if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
                                 eprintln!("Buffer Address: {:?}", buffer.as_ptr() as *const u64);
                                 panic!(

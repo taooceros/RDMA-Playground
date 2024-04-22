@@ -5,10 +5,11 @@ edition = "2021"
 
 [dependencies]
 bytemuck = "1.15.0"
+crossbeam = "0.8.4"
 derivative = "2.2.0"
 nix = "0.28.0"
 rand = "0.8.5"
 rdma-sys = "0.3.0"
 shared_memory = "0.12.4"
 uninit = { version = "0.6.2", features = ["zerocopy"] }
-zerocopy = "0.7.32"
+zerocopy = { version = "0.7.32", features = ["derive"] }
