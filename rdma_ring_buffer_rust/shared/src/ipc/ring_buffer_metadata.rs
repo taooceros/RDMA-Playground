@@ -9,7 +9,7 @@ pub struct RingBufferMetaData {
     pub tail_offset: usize,
     pub buffer_offset: usize,
     pub ring_buffer_len: usize,
-    pub shared_memory_len: usize,
+    pub shared_memory_name_len: usize,
     pub shared_memory_name: [u8; 32],
 }
 

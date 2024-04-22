@@ -41,7 +41,7 @@ fn main() {
     println!("Ring Buffer Metadata: {:?}", metadata);
 
     let shmem_os_id =
-        std::str::from_utf8(&metadata.shared_memory_name[..metadata.shared_memory_len]).unwrap();
+        std::str::from_utf8(&metadata.shared_memory_name[..metadata.shared_memory_name_len]).unwrap();
 
     let shmem = ShmemConf::new().os_id(shmem_os_id).open().unwrap();
 

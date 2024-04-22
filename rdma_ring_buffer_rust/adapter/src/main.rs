@@ -100,7 +100,7 @@ pub fn main() {
         tail_offset: offset_of!(RingBuffer<u64, RINGBUFFER_LEN>, tail),
         buffer_offset: offset_of!(RingBuffer<u64, RINGBUFFER_LEN>, buffer),
         ring_buffer_len: RINGBUFFER_LEN,
-        shared_memory_len: shmem.len(),
+        shared_memory_name_len: name.len(),
         shared_memory_name: name_buffer,
     };
 
