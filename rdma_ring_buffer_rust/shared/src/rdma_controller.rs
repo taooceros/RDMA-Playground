@@ -1,7 +1,10 @@
 use bytemuck::{bytes_of, cast_ref, AnyBitPattern, NoUninit};
 use core::panic;
 use rand::random;
-use rdma_sys::{ibv_qp_state::IBV_QPS_INIT, *};
+use rdma_sys::{
+    ibv_qp_state::{IBV_QPS_INIT, IBV_QPS_RESET},
+    *,
+};
 use std::{
     error::Error,
     ffi::CStr,
@@ -232,7 +235,7 @@ impl IbResource {
 
         println!("Received dest_info: {:?}", dest_info);
 
-        self.connect_qp_to_dest(0, 1, dest_info)?;
+        self.set_qp_rts(0, 1, dest_info)?;
 
         Ok(())
     }
@@ -281,7 +284,7 @@ impl IbResource {
 
             println!("Received {:?}", dest_info);
 
-            self.connect_qp_to_dest(0, 1, dest_info)?;
+            self.set_qp_rts(0, 1, dest_info)?;
         }
 
         Ok(())
@@ -296,13 +299,26 @@ impl IbResource {
         }
     }
 
-    fn connect_qp_to_dest(
-        &mut self,
-        sl: u8,
-        port: u8,
-        dest: DestQpInfo,
-    ) -> Result<(), Box<dyn Error>> {
+    pub fn set_qp_rts(&mut self, sl: u8, port: u8, dest: DestQpInfo) -> Result<(), Box<dyn Error>> {
         unsafe {
+            let mut qp_attr = ibv_qp_attr {
+                qp_state: IBV_QPS_RESET,
+                ..zeroed()
+            };
+
+            let ret = ibv_modify_qp(
+                self.qp,
+                &mut qp_attr,
+                (ibv_qp_attr_mask::IBV_QP_STATE).0 as i32,
+            );
+
+            if ret != 0 {
+                panic!(
+                    "Failed to modify QP from RESET to INIT {}",
+                    std::io::Error::last_os_error()
+                );
+            }
+
             let mut qp_attr = ibv_qp_attr {
                 qp_state: IBV_QPS_INIT,
                 pkey_index: 0,
