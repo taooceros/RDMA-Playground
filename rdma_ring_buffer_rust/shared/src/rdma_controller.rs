@@ -354,7 +354,7 @@ impl IbResource {
 
             let mut qp_attr = ibv_qp_attr {
                 qp_state: ibv_qp_state::IBV_QPS_RTR,
-                path_mtu: ibv_mtu::IBV_MTU_4096,
+                path_mtu: ibv_mtu::IBV_MTU_1024,
                 dest_qp_num: dest.qpn,
                 rq_psn: dest.psn,
                 max_dest_rd_atomic: 1,
