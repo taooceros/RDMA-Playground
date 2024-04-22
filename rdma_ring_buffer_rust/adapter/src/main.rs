@@ -117,6 +117,8 @@ pub fn main() {
 
                     'outer: loop {
                         for wc in ib_resource.poll_cq() {
+                            
+
                             if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
                                 eprintln!("Buffer Address: {:?}", buffer.as_ptr() as *const u64);
                                 panic!(
@@ -175,29 +177,24 @@ pub fn main() {
                 previous_head = current_head;
                 previous_buffer.copy_from_slice(reader.deref());
 
-                'send: loop {
-                    unsafe {
-                        ib_resource
-                            .post_send(2, &mut mr, reader.deref(), true)
-                            .expect("Failed to post send");
-                    }
-                    loop {
-                        for wc in ib_resource.poll_cq() {
-                            println!("Received work completion: {:?}", wc);
-                            if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
-                                eprintln!(
-                                    "wc status {}, last error {}",
-                                    wc.status,
-                                    std::io::Error::last_os_error()
-                                );
+                unsafe {
+                    ib_resource
+                        .post_send(2, &mut mr, reader.deref(), true)
+                        .expect("Failed to post send");
+                }
 
-                                
-                                continue 'send;
-                            }
+                'polling: loop {
+                    for wc in ib_resource.poll_cq() {
+                        if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
+                            panic!(
+                                "wc status {}, last error {}",
+                                wc.status,
+                                std::io::Error::last_os_error()
+                            );
+                        }
 
-                            if wc.opcode == rdma_sys::ibv_wc_opcode::IBV_WC_SEND {
-                                break 'send;
-                            }
+                        if wc.opcode == rdma_sys::ibv_wc_opcode::IBV_WC_SEND {
+                            break 'polling;
                         }
                     }
                 }
