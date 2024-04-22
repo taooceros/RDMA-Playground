@@ -2,7 +2,6 @@ use std::{
     fs::File,
     io::{Read, Write},
     mem::{align_of, size_of, MaybeUninit},
-    ptr::metadata,
     slice,
     sync::atomic::AtomicUsize,
     time::Duration,
