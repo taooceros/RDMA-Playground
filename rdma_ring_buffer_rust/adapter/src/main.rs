@@ -91,7 +91,9 @@ pub fn main() {
     println!("IPC created");
 
     let mut name_buffer = [0u8; 32];
-    name_buffer.copy_from_slice(shmem.get_os_id().as_bytes());
+    let name = shmem.get_os_id();
+    let name = name.as_bytes();
+    name_buffer[..name.len()].copy_from_slice(name);
 
     let init_metadata = RingBufferMetaData {
         head_offset: offset_of!(RingBuffer<u64, RINGBUFFER_LEN>, head),
@@ -103,7 +105,7 @@ pub fn main() {
 
     println!("Metadata: {:?}", init_metadata);
 
-    init_metadata.write_to_ipc(&mut ipc);
+    init_metadata.write_to(&mut ipc);
 
     let mut expected_val: u64 = 0;
 

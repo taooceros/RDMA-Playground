@@ -36,7 +36,7 @@ fn main() {
 
     println!("IPC Opened");
 
-    let metadata = RingBufferMetaData::read_from_ipc(&mut ipc);
+    let metadata = RingBufferMetaData::read_from(&mut ipc);
 
     println!("Ring Buffer Metadata: {:?}", metadata);
 

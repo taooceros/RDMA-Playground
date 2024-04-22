@@ -13,13 +13,13 @@ pub struct RingBufferMetaData {
 }
 
 impl RingBufferMetaData {
-    pub fn write_to_ipc(&self, mut writer: impl Write) {
+    pub fn write_to(&self, mut writer: impl Write) {
         writer.write_all(zerocopy::AsBytes::as_bytes(self)).unwrap();
     }
 
-    pub fn read_from_ipc(mut reader: impl std::io::Read) -> Self {
+    pub fn read_from(mut reader: impl std::io::Read) -> Self {
         let mut buffer = [0u8; std::mem::size_of::<Self>()];
         reader.read_exact(&mut buffer).unwrap();
-        unsafe { zerocopy::FromBytes::read_from(&buffer).unwrap() }
+        zerocopy::FromBytes::read_from(&buffer).unwrap()
     }
 }
