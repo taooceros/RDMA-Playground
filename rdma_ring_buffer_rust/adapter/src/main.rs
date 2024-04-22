@@ -190,6 +190,8 @@ pub fn main() {
                                     wc.status,
                                     std::io::Error::last_os_error()
                                 );
+
+                                
                                 continue 'send;
                             }
 

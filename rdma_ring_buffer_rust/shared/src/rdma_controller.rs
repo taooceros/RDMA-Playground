@@ -413,7 +413,7 @@ impl IbResource {
                 }));
             }
 
-            self.handshake();
+            // self.handshake();
 
             println!("Connected to dest");
 
