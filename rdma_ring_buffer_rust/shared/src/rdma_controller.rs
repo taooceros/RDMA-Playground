@@ -501,7 +501,7 @@ impl IbResource {
                 return vec![];
             }
 
-            println!("Polled {} wc", num_polled);
+            // println!("Polled {} wc", num_polled);
 
             wc_buffer[..num_polled as usize]
                 .iter_mut()

@@ -4,7 +4,9 @@ use std::{
     mem::{offset_of, size_of, transmute, MaybeUninit},
     net::IpAddr,
     ops::{Deref, DerefMut},
+    process::exit,
     str::FromStr,
+    thread,
 };
 
 use clap::Parser;
@@ -108,6 +110,12 @@ pub fn main() {
 
     init_metadata.write_to(&mut ipc);
 
+    let ipc_thread = thread::spawn(move || {
+        let mut buf = vec![0];
+        ipc.read_to_end(&mut buf).unwrap();
+        exit(0);
+    });
+
     let mut expected_val: u64 = 0;
 
     let mut previous_buffer = vec![0; args.message_size];
@@ -136,8 +144,6 @@ pub fn main() {
                             }
 
                             if wc.opcode == rdma_sys::ibv_wc_opcode::IBV_WC_RECV {
-                                println!("Received message");
-
                                 break 'outer;
                             }
                         }

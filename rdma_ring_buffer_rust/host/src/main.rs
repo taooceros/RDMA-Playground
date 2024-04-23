@@ -41,7 +41,8 @@ fn main() {
     println!("Ring Buffer Metadata: {:?}", metadata);
 
     let shmem_os_id =
-        std::str::from_utf8(&metadata.shared_memory_name[..metadata.shared_memory_name_len]).unwrap();
+        std::str::from_utf8(&metadata.shared_memory_name[..metadata.shared_memory_name_len])
+            .unwrap();
 
     let shmem = ShmemConf::new().os_id(shmem_os_id).open().unwrap();
 
@@ -130,6 +131,8 @@ fn main() {
         "Throughput: {} MB/s",
         (dataflow * size_of::<u64>()) as f64 / duration.as_secs_f64() / 1024.0 / 1024.0
     );
+
+    ipc.write(&[1]).unwrap();
 
     println!("Finished RDMA Ring Buffer Test");
 }

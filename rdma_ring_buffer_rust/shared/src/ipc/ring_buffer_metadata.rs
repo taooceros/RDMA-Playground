@@ -2,7 +2,7 @@ use std::{io::Write, mem::MaybeUninit};
 
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
-#[derive(Debug, FromZeroes, FromBytes, AsBytes, Clone)]
+#[derive(Debug, FromZeroes, FromBytes, AsBytes)]
 #[repr(C)]
 pub struct RingBufferMetaData {
     pub head_offset: usize,
