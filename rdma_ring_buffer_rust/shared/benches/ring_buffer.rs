@@ -1,3 +1,4 @@
+use shared::atomic_extension::AtomicExtension;
 use std::mem::{size_of, ManuallyDrop};
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
@@ -61,6 +62,11 @@ fn ring_buffer(batch_size: usize) {
 
         reader_thread.join().unwrap();
         writer_thread.join().unwrap();
+
+        assert_eq!(
+            ring_buffer.head.load_acquire(),
+            ring_buffer.tail.load_acquire()
+        );
     });
 }
 
