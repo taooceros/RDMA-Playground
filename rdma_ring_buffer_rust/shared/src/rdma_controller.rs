@@ -1,7 +1,10 @@
 use bytemuck::{bytes_of, cast_ref, AnyBitPattern, NoUninit};
 use core::panic;
 use rand::random;
-use rdma_sys::{ibv_qp_state::IBV_QPS_INIT, *};
+use rdma_sys::{
+    ibv_qp_state::{IBV_QPS_INIT, IBV_QPS_RESET},
+    *,
+};
 use std::{
     error::Error,
     ffi::CStr,
@@ -120,7 +123,13 @@ impl IbResource {
 
             // create cq
 
-            self.cq = ibv_create_cq(self.ctx, 1, null_mut(), null_mut(), 0);
+            self.cq = ibv_create_cq(
+                self.ctx,
+                self.dev_attr.assume_init_ref().max_cqe,
+                null_mut(),
+                null_mut(),
+                0,
+            );
 
             if self.cq.is_null() {
                 let os_error = std::io::Error::last_os_error();
@@ -171,6 +180,8 @@ impl IbResource {
                 println!("last OS error: {os_error:?}");
                 panic!("Failed to create queue pair");
             }
+
+            println!("Max Inline Data: {}", qp_init_attr.cap.max_inline_data);
 
             self.connect_dest(config).unwrap();
 
@@ -224,7 +235,9 @@ impl IbResource {
 
         println!("Received dest_info: {:?}", dest_info);
 
-        self.connect_qp_to_dest(0, 1, dest_info)?;
+        self.set_qp_rts(0, 1, dest_info)?;
+
+        self.handshake();
 
         Ok(())
     }
@@ -273,7 +286,9 @@ impl IbResource {
 
             println!("Received {:?}", dest_info);
 
-            self.connect_qp_to_dest(0, 1, dest_info)?;
+            self.set_qp_rts(0, 1, dest_info)?;
+
+            self.handshake();
         }
 
         Ok(())
@@ -288,13 +303,26 @@ impl IbResource {
         }
     }
 
-    fn connect_qp_to_dest(
-        &mut self,
-        sl: u8,
-        port: u8,
-        dest: DestQpInfo,
-    ) -> Result<(), Box<dyn Error>> {
+    pub fn set_qp_rts(&mut self, sl: u8, port: u8, dest: DestQpInfo) -> Result<(), Box<dyn Error>> {
         unsafe {
+            let mut qp_attr = ibv_qp_attr {
+                qp_state: IBV_QPS_RESET,
+                ..zeroed()
+            };
+
+            let ret = ibv_modify_qp(
+                self.qp,
+                &mut qp_attr,
+                (ibv_qp_attr_mask::IBV_QP_STATE).0 as i32,
+            );
+
+            if ret != 0 {
+                panic!(
+                    "Failed to modify QP from RESET to INIT {}",
+                    std::io::Error::last_os_error()
+                );
+            }
+
             let mut qp_attr = ibv_qp_attr {
                 qp_state: IBV_QPS_INIT,
                 pkey_index: 0,
@@ -330,7 +358,7 @@ impl IbResource {
 
             let mut qp_attr = ibv_qp_attr {
                 qp_state: ibv_qp_state::IBV_QPS_RTR,
-                path_mtu: ibv_mtu::IBV_MTU_4096,
+                path_mtu: ibv_mtu::IBV_MTU_1024,
                 dest_qp_num: dest.qpn,
                 rq_psn: dest.psn,
                 max_dest_rd_atomic: 1,
@@ -405,7 +433,7 @@ impl IbResource {
                 }));
             }
 
-            self.handshake();
+            // self.handshake();
 
             println!("Connected to dest");
 
@@ -473,7 +501,7 @@ impl IbResource {
                 return vec![];
             }
 
-            println!("Polled {} wc", num_polled);
+            // println!("Polled {} wc", num_polled);
 
             wc_buffer[..num_polled as usize]
                 .iter_mut()

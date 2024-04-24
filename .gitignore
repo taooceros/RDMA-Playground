@@ -6,3 +6,5 @@ CMakeCache.txt
 Makefile
 pingpong
 *.log
+perf*
+flamegraph*

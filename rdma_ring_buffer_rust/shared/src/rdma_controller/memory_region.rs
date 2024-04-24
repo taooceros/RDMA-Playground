@@ -7,6 +7,8 @@ use std::mem::MaybeUninit;
 
 use bytemuck::NoUninit;
 use rdma_sys::{ibv_access_flags, ibv_mr, ibv_reg_mr};
+use zerocopy::AsBytes;
+use zerocopy::FromBytes;
 
 use super::IbResource;
 
@@ -41,16 +43,17 @@ impl DerefMut for MemoryRegion {
 }
 
 impl IbResource {
-    pub fn register_memory_region<'a, T: Sized + Copy>(
+    pub fn register_memory_region<'a, T: Sized + FromBytes + AsBytes>(
         &mut self,
         buffer: &'a mut [T],
     ) -> io::Result<MemoryRegion> {
         unsafe {
+            let buffer = buffer.as_bytes();
 
             let mr = ibv_reg_mr(
                 self.pd,
                 buffer.as_ptr().cast_mut().cast(),
-                buffer.len() * std::mem::size_of::<T>(),
+                buffer.len(),
                 (ibv_access_flags::IBV_ACCESS_LOCAL_WRITE
                     | ibv_access_flags::IBV_ACCESS_REMOTE_WRITE
                     | ibv_access_flags::IBV_ACCESS_REMOTE_READ)

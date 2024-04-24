@@ -1,10 +1,12 @@
 use core::panic;
 use std::{
     io::{Read, Write},
-    mem::{size_of, transmute, MaybeUninit},
+    mem::{offset_of, size_of, transmute, MaybeUninit},
     net::IpAddr,
     ops::{Deref, DerefMut},
+    process::exit,
     str::FromStr,
+    thread,
 };
 
 use clap::Parser;
@@ -90,14 +92,29 @@ pub fn main() {
 
     println!("IPC created");
 
+    let mut name_buffer = [0u8; 32];
+    let name = shmem.get_os_id();
+    let name = name.as_bytes();
+    name_buffer[..name.len()].copy_from_slice(name);
+
     let init_metadata = RingBufferMetaData {
+        head_offset: offset_of!(RingBuffer<u64, RINGBUFFER_LEN>, head),
+        tail_offset: offset_of!(RingBuffer<u64, RINGBUFFER_LEN>, tail),
+        buffer_offset: offset_of!(RingBuffer<u64, RINGBUFFER_LEN>, buffer),
         ring_buffer_len: RINGBUFFER_LEN,
-        shared_memory_name: shmem.get_os_id().as_bytes().into(),
+        shared_memory_name_len: name.len(),
+        shared_memory_name: name_buffer,
     };
 
     println!("Metadata: {:?}", init_metadata);
 
-    init_metadata.write_to_ipc(&mut ipc);
+    init_metadata.write_to(&mut ipc);
+
+    let ipc_thread = thread::spawn(move || {
+        let mut buf = vec![0];
+        ipc.read_to_end(&mut buf).unwrap();
+        exit(0);
+    });
 
     let mut expected_val: u64 = 0;
 
@@ -127,8 +144,6 @@ pub fn main() {
                             }
 
                             if wc.opcode == rdma_sys::ibv_wc_opcode::IBV_WC_RECV {
-                                println!("Received message");
-
                                 break 'outer;
                             }
                         }
@@ -181,7 +196,7 @@ pub fn main() {
                         .expect("Failed to post send");
                 }
 
-                'outer: loop {
+                'polling: loop {
                     for wc in ib_resource.poll_cq() {
                         println!("Received work completion: {:?}", wc);
                         if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
@@ -193,7 +208,7 @@ pub fn main() {
                         }
 
                         if wc.opcode == rdma_sys::ibv_wc_opcode::IBV_WC_SEND {
-                            break 'outer;
+                            break 'polling;
                         }
                     }
                 }

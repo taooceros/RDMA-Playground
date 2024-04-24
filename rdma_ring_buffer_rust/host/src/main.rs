@@ -36,11 +36,13 @@ fn main() {
 
     println!("IPC Opened");
 
-    let metadata = RingBufferMetaData::read_from_ipc(&mut ipc);
+    let metadata = RingBufferMetaData::read_from(&mut ipc);
 
     println!("Ring Buffer Metadata: {:?}", metadata);
 
-    let shmem_os_id = std::str::from_utf8(&metadata.shared_memory_name).unwrap();
+    let shmem_os_id =
+        std::str::from_utf8(&metadata.shared_memory_name[..metadata.shared_memory_name_len])
+            .unwrap();
 
     let shmem = ShmemConf::new().os_id(shmem_os_id).open().unwrap();
 
@@ -48,12 +50,26 @@ fn main() {
 
     let shmem_ptr = shmem.as_ptr();
 
-    let head_ref = unsafe { AtomicUsize::from_ptr(shmem_ptr.cast()) };
-    let tail_ref = unsafe { AtomicUsize::from_ptr(shmem_ptr.add(size_of::<usize>()).cast()) };
+    let head_ref = unsafe {
+        AtomicUsize::from_ptr(
+            shmem_ptr
+                .byte_add(metadata.head_offset.try_into().unwrap())
+                .cast(),
+        )
+    };
+    let tail_ref = unsafe {
+        AtomicUsize::from_ptr(
+            shmem_ptr
+                .byte_add(metadata.tail_offset.try_into().unwrap())
+                .cast(),
+        )
+    };
 
     let mut ring_buffer = RefRingBuffer::<u64>::from_raw_parts(head_ref, tail_ref, unsafe {
         slice::from_raw_parts_mut(
-            shmem_ptr.add(size_of::<usize>() * 2).cast(),
+            shmem_ptr
+                .byte_add(metadata.buffer_offset.try_into().unwrap())
+                .cast(),
             metadata.ring_buffer_len,
         )
     });
@@ -115,6 +131,8 @@ fn main() {
         "Throughput: {} MB/s",
         (dataflow * size_of::<u64>()) as f64 / duration.as_secs_f64() / 1024.0 / 1024.0
     );
+
+    ipc.write(&[1]).unwrap();
 
     println!("Finished RDMA Ring Buffer Test");
 }
