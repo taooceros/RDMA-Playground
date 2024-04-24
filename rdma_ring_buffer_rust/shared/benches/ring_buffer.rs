@@ -36,8 +36,8 @@ fn ring_buffer(batch_size: usize) {
                 if let Some(reader) = reader.read_exact(batch_size) {
                     assert_eq!(reader.len(), batch_size);
 
-                    for i in 0..batch_size {
-                        assert_eq!(reader[i], count);
+                    for val in reader.iter() {
+                        assert_eq!(*val, count);
                         count = count.wrapping_add(1);
                     }
                 }
