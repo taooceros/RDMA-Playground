@@ -8,8 +8,8 @@ use crate::{atomic_extension::AtomicExtension, ref_ring_buffer::RefRingBuffer};
 
 #[repr(C, align(4096))]
 pub struct RingBuffer<T, const N: usize> {
-    pub head: AtomicUsize,
-    pub tail: AtomicUsize,
+    pub head: CachePadded<AtomicUsize>,
+    pub tail: CachePadded<AtomicUsize>,
     pub buffer: UnsafeCell<[MaybeUninit<T>; N]>,
 }
 
