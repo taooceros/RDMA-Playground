@@ -29,11 +29,12 @@ fn ring_buffer(batch_size: usize) {
         let ref_ring_buffer = Arc::new(ring_buffer.to_ref());
         let reader = ref_ring_buffer.clone();
         let writer = ref_ring_buffer.clone();
-        const ITER: usize = 1 * MB;
+        const DATA_SIZE: usize = 1 * MB;
+        let iteration = DATA_SIZE / batch_size;
 
         let reader_thread = s.spawn(move || {
             let mut count = 0;
-            for _ in 0..ITER {
+            for _ in 0..iteration {
                 loop {
                     if let Some(reader) = reader.read_exact(batch_size) {
                         assert_eq!(reader.len(), batch_size);
@@ -51,7 +52,7 @@ fn ring_buffer(batch_size: usize) {
         let writer_thread = s.spawn(move || {
             let mut count = 0;
 
-            for _ in 0..ITER {
+            for _ in 0..iteration {
                 loop {
                     if let Some(mut writer) = writer.reserve_write(batch_size) {
                         assert_eq!(writer.len(), batch_size);
