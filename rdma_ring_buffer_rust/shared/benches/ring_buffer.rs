@@ -34,6 +34,8 @@ fn ring_buffer(batch_size: usize) {
             let mut count = 0;
             for _ in 0..ITER {
                 if let Some(reader) = reader.read_exact(batch_size) {
+                    assert_eq!(reader.len(), batch_size);
+
                     for val in reader.iter() {
                         assert_eq!(*val, count);
                         count += 1;
@@ -47,6 +49,8 @@ fn ring_buffer(batch_size: usize) {
 
             for _ in 0..ITER {
                 if let Some(mut writer) = writer.reserve_write(batch_size) {
+                    assert_eq!(writer.len(), batch_size);
+
                     for val in writer.iter_mut() {
                         val.write(count);
                         count += 1;
