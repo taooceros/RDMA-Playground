@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 bytemuck = "1.15.0"
+criterion = "0.5.1"
 derivative = "2.2.0"
 nix = "0.28.0"
 rand = "0.8.5"
@@ -12,3 +13,15 @@ rdma-sys = "0.3.0"
 shared_memory = "0.12.4"
 uninit = { version = "0.6.2", features = ["zerocopy"] }
 zerocopy = "0.7.32"
+
+[[bench]]
+name = "ring_buffer"
+harness = false
+
+[[test]]
+name = "ring_buffer"
+path = "tests/ring_buffer.rs"
+
+
+[profile.bench]
+debug = true

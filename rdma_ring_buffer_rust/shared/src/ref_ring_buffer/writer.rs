@@ -10,14 +10,14 @@ use crate::atomic_extension::AtomicExtension;
 use super::RefRingBuffer;
 
 pub struct RingBufferWriter<'a, T> {
-    ring_buffer: &'a mut RefRingBuffer<T>,
+    ring_buffer: &'a RefRingBuffer<T>,
     start: usize,
     end: usize,
     _marker: PhantomData<&'a mut T>,
 }
 
 impl<'a, T: Copy + Send> RingBufferWriter<'a, T> {
-    pub(super) fn try_reserve(ring_buffer: &'a mut RefRingBuffer<T>, size: usize) -> Option<Self> {
+    pub(super) fn try_reserve(ring_buffer: &'a RefRingBuffer<T>, size: usize) -> Option<Self> {
         unsafe {
             let head = ring_buffer.head.as_ref().unwrap().load_acquire();
             let tail = ring_buffer.tail.as_ref().unwrap().load_acquire();

@@ -20,6 +20,9 @@ pub struct RefRingBuffer<T> {
     buffer: *mut [MaybeUninit<T>],
 }
 
+unsafe impl<T: Send> Send for RefRingBuffer<T> {}
+unsafe impl<T: Send> Sync for RefRingBuffer<T> {}
+
 impl<T: Send + Copy> RefRingBuffer<T> {
     pub fn buffer_size(&self) -> usize {
         unsafe { self.buffer.as_ref().unwrap().len() }
@@ -36,12 +39,12 @@ impl<T: Send + Copy> RefRingBuffer<T> {
     pub fn from_raw_parts(
         head: &AtomicUsize,
         tail: &AtomicUsize,
-        buffer: &mut [MaybeUninit<T>],
+        buffer: *mut [MaybeUninit<T>],
     ) -> Self {
         Self { head, tail, buffer }
     }
 
-    pub fn read_exact(&mut self, len: usize) -> Option<reader::RingBufferReader<T>> {
+    pub fn read_exact(&self, len: usize) -> Option<reader::RingBufferReader<T>> {
         unsafe {
             let head = self.head_ref().load_acquire();
             let tail = self.tail_ref().load_acquire();
@@ -66,7 +69,7 @@ impl<T: Send + Copy> RefRingBuffer<T> {
 
     // The reader will only return continuous memory slice regardless of the buffer is wrapped around
     // This ensure that RingBufferReader can be converted into slice
-    pub fn read(&mut self) -> reader::RingBufferReader<T> {
+    pub fn read(&self) -> reader::RingBufferReader<T> {
         unsafe {
             let head = self.head_ref().load_acquire();
             let tail = self.tail_ref().load_acquire();
@@ -85,7 +88,7 @@ impl<T: Send + Copy> RefRingBuffer<T> {
     }
 
     // The writer doesn't ensure that the data written is continuous
-    pub fn write(&mut self, data: &[T]) -> usize {
+    pub fn write(&self, data: &[T]) -> usize {
         unsafe {
             let head = self.head_ref().load_acquire();
             let tail = self.tail_ref().load_acquire();
@@ -131,7 +134,7 @@ impl<T: Send + Copy> RefRingBuffer<T> {
     }
 
     // This writer will only return continuous memory slice regardless of the buffer is wrapped around
-    pub fn reserve_write(&mut self, len: usize) -> Option<writer::RingBufferWriter<T>> {
+    pub fn reserve_write(&self, len: usize) -> Option<writer::RingBufferWriter<T>> {
         writer::RingBufferWriter::try_reserve(self, len)
     }
 }
