@@ -51,8 +51,8 @@ fn ring_buffer(batch_size: usize) {
                 if let Some(mut writer) = writer.reserve_write(batch_size) {
                     assert_eq!(writer.len(), batch_size);
 
-                    for val in writer.iter_mut() {
-                        val.write(count);
+                    for i in 0..batch_size {
+                        writer[i].write(count);
                         count = count.wrapping_add(1);
                     }
                 }
