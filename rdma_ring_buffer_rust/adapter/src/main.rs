@@ -14,7 +14,7 @@ use clap::Parser;
 use shared::{
     ipc::{self, ring_buffer_metadata::RingBufferMetaData},
     rdma_controller,
-    ring_buffer::RingBuffer,
+    ring_buffer::RingBufferConst,
 };
 use shared_memory::ShmemConf;
 use uninit::out_ref::Out;
@@ -55,7 +55,7 @@ pub fn main() {
     const RINGBUFFER_LEN: usize = 32768;
 
     let mut shmem = ShmemConf::new()
-        .size(size_of::<RingBuffer<u64, RINGBUFFER_LEN>>())
+        .size(size_of::<RingBufferConst<u64, RINGBUFFER_LEN>>())
         .create()
         .unwrap();
 
@@ -70,11 +70,11 @@ pub fn main() {
     let ring_buffer = unsafe {
         let uninit = shmem
             .as_ptr()
-            .cast::<MaybeUninit<RingBuffer<u64, RINGBUFFER_LEN>>>()
+            .cast::<MaybeUninit<RingBufferConst<u64, RINGBUFFER_LEN>>>()
             .as_mut()
             .unwrap();
 
-        uninit.write(RingBuffer::new());
+        uninit.write(RingBufferConst::new());
 
         uninit.assume_init_mut()
     };
@@ -98,9 +98,9 @@ pub fn main() {
     name_buffer[..name.len()].copy_from_slice(name);
 
     let init_metadata = RingBufferMetaData {
-        head_offset: offset_of!(RingBuffer<u64, RINGBUFFER_LEN>, head),
-        tail_offset: offset_of!(RingBuffer<u64, RINGBUFFER_LEN>, tail),
-        buffer_offset: offset_of!(RingBuffer<u64, RINGBUFFER_LEN>, buffer),
+        head_offset: offset_of!(RingBufferConst<u64, RINGBUFFER_LEN>, head),
+        tail_offset: offset_of!(RingBufferConst<u64, RINGBUFFER_LEN>, tail),
+        buffer_offset: offset_of!(RingBufferConst<u64, RINGBUFFER_LEN>, buffer),
         ring_buffer_len: RINGBUFFER_LEN,
         shared_memory_name_len: name.len(),
         shared_memory_name: name_buffer,

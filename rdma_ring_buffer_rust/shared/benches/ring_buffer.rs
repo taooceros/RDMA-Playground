@@ -8,24 +8,30 @@ const KB: usize = 1024;
 const MB: usize = KB * KB;
 const GB: usize = KB * MB;
 
-pub fn criterion_benchmark(c: &mut Criterion) {
+pub fn ringbuffer_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("ring buffer bench");
-    for size in (4..=10).map(|i| 1 << i) {
-        group.throughput(criterion::Throughput::Bytes((size_of::<u64>() * MB) as u64));
-        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            b.iter(|| ring_buffer(size));
-        });
+    for buffer_size in (12..=14).map(|i| 1 << i) {
+        for batch_size in (3..=6).map(|i| 1 << (i * 2)) {
+            group.throughput(criterion::Throughput::Bytes((size_of::<u64>() * MB) as u64));
+            group.bench_with_input(
+                BenchmarkId::new(format!("Buffer Size {}", buffer_size), batch_size),
+                &(buffer_size, batch_size),
+                |b, &(buffer_size, batch_size)| {
+                    b.iter(|| ring_buffer(batch_size, buffer_size));
+                },
+            );
+        }
     }
 }
 
 #[inline(always)]
-fn ring_buffer(batch_size: usize) {
+fn ring_buffer(batch_size: usize, buffer_size: usize) {
     use std::{sync::Arc, thread};
 
-    use shared::ring_buffer::RingBuffer;
+    use shared::ring_buffer::RingBufferConst;
 
     thread::scope(|s| {
-        let mut ring_buffer = RingBuffer::<u64, 4096>::new();
+        let mut ring_buffer = RingBufferConst::<u64, 4096>::new();
         let ref_ring_buffer = Arc::new(ring_buffer.to_ref());
         let reader = ref_ring_buffer.clone();
         let writer = ref_ring_buffer.clone();
@@ -77,5 +83,5 @@ fn ring_buffer(batch_size: usize) {
     });
 }
 
-criterion_group!(benches, criterion_benchmark);
+criterion_group!(benches, ringbuffer_benchmark);
 criterion_main!(benches);

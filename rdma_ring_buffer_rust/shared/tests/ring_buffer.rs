@@ -4,11 +4,11 @@ pub mod tests {
     pub fn ring_buffer_general_test() {
         use std::{sync::Arc, thread};
 
-        use shared::ring_buffer::RingBuffer;
+        use shared::ring_buffer::RingBufferConst;
 
         for i in 1..500 {
             thread::scope(|s| {
-                let mut ring_buffer = RingBuffer::<u64, 4096>::new();
+                let mut ring_buffer = RingBufferConst::<u64, 4096>::new();
                 let ref_ring_buffer = Arc::new(ring_buffer.to_ref());
                 let reader = ref_ring_buffer.clone();
                 let writer = ref_ring_buffer.clone();
