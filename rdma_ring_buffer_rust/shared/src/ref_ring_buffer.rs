@@ -52,7 +52,9 @@ impl<T: Send + Copy> RefRingBuffer<T> {
 
             let mut avaliable = tail - head;
 
-            avaliable = avaliable.min(buffer_size - (head % buffer_size));
+            let to_end = buffer_size - (head % buffer_size);
+
+            avaliable = avaliable.min(to_end);
 
             if avaliable < len {
                 return None;

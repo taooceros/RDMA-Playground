@@ -34,12 +34,15 @@ fn ring_buffer(batch_size: usize) {
         let reader_thread = s.spawn(move || {
             let mut count = 0;
             for _ in 0..ITER {
-                if let Some(reader) = reader.read_exact(batch_size) {
-                    assert_eq!(reader.len(), batch_size);
+                loop {
+                    if let Some(reader) = reader.read_exact(batch_size) {
+                        assert_eq!(reader.len(), batch_size);
 
-                    for val in reader.iter() {
-                        assert_eq!(*val, count);
-                        count = count.wrapping_add(1);
+                        for val in reader.iter() {
+                            assert_eq!(*val, count);
+                            count = count.wrapping_add(1);
+                        }
+                        break;
                     }
                 }
             }
@@ -49,12 +52,15 @@ fn ring_buffer(batch_size: usize) {
             let mut count = 0;
 
             for _ in 0..ITER {
-                if let Some(mut writer) = writer.reserve_write(batch_size) {
-                    assert_eq!(writer.len(), batch_size);
+                loop {
+                    if let Some(mut writer) = writer.reserve_write(batch_size) {
+                        assert_eq!(writer.len(), batch_size);
 
-                    for i in 0..batch_size {
-                        writer[i].write(count);
-                        count = count.wrapping_add(1);
+                        for i in 0..batch_size {
+                            writer[i].write(count);
+                            count = count.wrapping_add(1);
+                        }
+                        break;
                     }
                 }
             }

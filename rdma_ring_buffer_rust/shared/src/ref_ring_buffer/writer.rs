@@ -28,11 +28,7 @@ impl<'a, T: Copy + Send> RingBufferWriter<'a, T> {
 
             let to_end = buffer_size - (tail % buffer_size);
 
-            avaliable = if avaliable > to_end {
-                to_end
-            } else {
-                avaliable
-            };
+            avaliable = avaliable.min(to_end);
 
             if avaliable < size {
                 return None;
