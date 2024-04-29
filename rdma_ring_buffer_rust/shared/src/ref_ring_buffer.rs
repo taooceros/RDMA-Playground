@@ -48,6 +48,10 @@ impl<T: Send + Copy> RefRingBuffer<T> {
         Self { head, tail, buffer }
     }
 
+    pub fn buffer_slice(&self) -> &mut [MaybeUninit<T>] {
+        unsafe { self.buffer.as_mut().unwrap_unchecked() }
+    }
+
     pub fn read_exact(&self, len: usize) -> Option<reader::RingBufferReader<T>> {
         unsafe {
             let head = self.head_ref().load_acquire();

@@ -18,7 +18,6 @@ use shared_memory::ShmemConf;
 
 use crate::command_line::{ConnectionType, GlobalArgs};
 
-mod atomic_extension;
 mod command_line;
 mod communication_manager;
 

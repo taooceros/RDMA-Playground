@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 shared = { path = "../shared" }
+quanta = "0.12"
+rdma-sys = "0.3.0"
+uninit = "0.6.2"
