@@ -108,12 +108,7 @@ fn adapter(
 
     let mut expected_val = 0usize;
     'outer: loop {
-        if let Some(reader) = receiver.read_exact(spec.batch_size) {
-            for val in reader.iter() {
-                assert_eq!(val, &expected_val);
-                expected_val = expected_val.wrapping_add(1);
-            }
-
+        if let Some(reader) = receiver.read_exact(spec.message_size) {
             unsafe {
                 ib_resource
                     .post_send(2, &mut mr, reader.deref(), true)

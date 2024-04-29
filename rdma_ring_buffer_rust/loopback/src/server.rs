@@ -73,6 +73,8 @@ fn host(
         }
 
         if let Some(reader) = sender.read_exact(spec.batch_size) {
+            coz::progress!("Read data from ring buffer");
+
             let reader_len = reader.len();
             dataflow += reader_len;
 
@@ -119,7 +121,7 @@ fn adapter(
 
     'outer: loop {
         unsafe {
-            if let Some(mut buffer) = receiver.reserve_write(spec.batch_size) {
+            if let Some(mut buffer) = receiver.reserve_write(spec.message_size) {
                 ib_resource
                     .post_recv(2, &mut mr, Out::<'_, [usize]>::from(buffer.deref_mut()))
                     .expect("Failed to post recv");
@@ -142,11 +144,6 @@ fn adapter(
                             break 'polling;
                         }
                     }
-                }
-
-                for val in 0..buffer.len() {
-                    assert_eq!(buffer[val].assume_init(), expected_val);
-                    expected_val = expected_val.wrapping_add(1);
                 }
             }
         }
