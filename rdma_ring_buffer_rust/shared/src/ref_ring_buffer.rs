@@ -24,7 +24,7 @@ pub struct RefRingBuffer<T> {
 unsafe impl<T: Send> Send for RefRingBuffer<T> {}
 unsafe impl<T: Send> Sync for RefRingBuffer<T> {}
 
-impl<T: Send + Copy> RefRingBuffer<T> {
+impl<T> RefRingBuffer<T> {
     #[inline(always)]
     pub fn buffer_size(&self) -> usize {
         unsafe { self.buffer.as_ref().unwrap_unchecked().len() }
@@ -39,7 +39,9 @@ impl<T: Send + Copy> RefRingBuffer<T> {
     pub fn tail_ref(&self) -> &AtomicUsize {
         unsafe { self.tail.as_ref().unwrap_unchecked() }
     }
+}
 
+impl<T: Send + Copy> RefRingBuffer<T> {
     pub fn from_raw_parts(
         head: &AtomicUsize,
         tail: &AtomicUsize,
