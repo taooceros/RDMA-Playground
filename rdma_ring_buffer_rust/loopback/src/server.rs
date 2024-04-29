@@ -1,5 +1,12 @@
 use std::{
-    hint::spin_loop, mem::{transmute, MaybeUninit}, num::NonZeroI32, ops::DerefMut, ptr::read, sync::atomic::AtomicBool, thread, time::Duration
+    hint::spin_loop,
+    mem::{transmute, MaybeUninit},
+    num::NonZeroI32,
+    ops::DerefMut,
+    ptr::read,
+    sync::atomic::AtomicBool,
+    thread,
+    time::Duration,
 };
 
 use quanta::Clock;
@@ -34,16 +41,18 @@ pub fn connect_to_client(spec: Spec) {
     let sender = ref_ring_buffer.clone();
 
     let ready = &AtomicBool::new(false);
+    let stop = &AtomicBool::new(false);
 
     thread::scope(|s| {
-        s.spawn(move || adapter(config, receiver, ready, spec));
+        s.spawn(move || adapter(config, receiver, ready, stop, spec));
 
-        s.spawn(move || host(ready, &spec, sender));
+        s.spawn(move || host(ready, stop, &spec, sender));
     })
 }
 
 fn host(
     ready: &AtomicBool,
+    stop: &AtomicBool,
     spec: &spec::Spec,
     sender: shared::ref_ring_buffer::RefRingBuffer<usize>,
 ) {
@@ -69,7 +78,6 @@ fn host(
 
             for data in reader.iter() {
                 if *data != expected_data {
-                    eprintln!("Reader {:?}", reader);
                     panic!("Data mismatch: expected {}, got {}", expected_data, *data);
                 }
 
@@ -78,8 +86,10 @@ fn host(
         }
     }
 
+    stop.store_release(true);
+
     println!(
-        "Throughput: {} MB/s",
+        "Server Throughput: {} MB/s",
         dataflow as f64 / 1024.0 / 1024.0 / (spec.duration.as_secs() as f64)
     );
 
@@ -90,6 +100,7 @@ fn adapter(
     config: Config,
     receiver: shared::ref_ring_buffer::RefRingBuffer<usize>,
     ready: &AtomicBool,
+    stop: &AtomicBool,
     spec: spec::Spec,
 ) {
     let mut ib_resource = IbResource::new();
@@ -106,18 +117,20 @@ fn adapter(
     ready.store_release(true);
     let mut expected_val = 0usize;
 
-    loop {
+    'outer: loop {
         unsafe {
             if let Some(mut buffer) = receiver.reserve_write(spec.batch_size) {
-
                 ib_resource
                     .post_recv(2, &mut mr, Out::<'_, [usize]>::from(buffer.deref_mut()))
                     .expect("Failed to post recv");
 
-                'outer: loop {
+                'polling: loop {
+                    if stop.load_acquire() {
+                        break 'outer;
+                    }
+
                     for wc in ib_resource.poll_cq() {
                         if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
-                            eprintln!("Buffer Address: {:?}", buffer.as_ptr() as *const u64);
                             panic!(
                                 "wc status {}, last error {}",
                                 wc.status,
@@ -126,7 +139,7 @@ fn adapter(
                         }
 
                         if wc.opcode == rdma_sys::ibv_wc_opcode::IBV_WC_RECV {
-                            break 'outer;
+                            break 'polling;
                         }
                     }
                 }

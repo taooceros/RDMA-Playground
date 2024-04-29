@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{thread, time::Duration};
 
 mod client;
 mod server;
@@ -7,12 +7,14 @@ mod spec;
 fn main() {
     let spec = spec::Spec {
         port: 12345,
-        message_size: 64,
-        buffer_size: 2 << 15,
-        duration: Duration::from_secs(3),
-        batch_size: 1024,
+        message_size: 2 << 16,
+        buffer_size: 2 << 24,
+        duration: Duration::from_secs(5),
+        batch_size: 2 << 16,
     };
 
-    client::connect_to_server(spec);
-    server::connect_to_client(spec);
+    thread::scope(|s| {
+        s.spawn(move || client::connect_to_server(spec));
+        s.spawn(move || server::connect_to_client(spec));
+    })
 }
