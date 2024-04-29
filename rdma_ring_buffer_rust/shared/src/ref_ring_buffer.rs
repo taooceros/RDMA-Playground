@@ -14,6 +14,7 @@ pub mod reader;
 pub mod writer;
 
 // Safety: The Ref must not outlive the underlying RingBuffer
+#[derive(Debug, Clone)]
 pub struct RefRingBuffer<T> {
     head: *const AtomicUsize,
     tail: *const AtomicUsize,
@@ -24,16 +25,19 @@ unsafe impl<T: Send> Send for RefRingBuffer<T> {}
 unsafe impl<T: Send> Sync for RefRingBuffer<T> {}
 
 impl<T: Send + Copy> RefRingBuffer<T> {
+    #[inline(always)]
     pub fn buffer_size(&self) -> usize {
-        unsafe { self.buffer.as_ref().unwrap().len() }
+        unsafe { self.buffer.as_ref().unwrap_unchecked().len() }
     }
 
+    #[inline(always)]
     pub fn head_ref(&self) -> &AtomicUsize {
-        unsafe { self.head.as_ref().unwrap() }
+        unsafe { self.head.as_ref().unwrap_unchecked() }
     }
 
+    #[inline(always)]
     pub fn tail_ref(&self) -> &AtomicUsize {
-        unsafe { self.tail.as_ref().unwrap() }
+        unsafe { self.tail.as_ref().unwrap_unchecked() }
     }
 
     pub fn from_raw_parts(

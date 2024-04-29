@@ -19,8 +19,8 @@ pub struct RingBufferWriter<'a, T> {
 impl<'a, T: Copy + Send> RingBufferWriter<'a, T> {
     pub(super) fn try_reserve(ring_buffer: &'a RefRingBuffer<T>, size: usize) -> Option<Self> {
         unsafe {
-            let head = ring_buffer.head.as_ref().unwrap().load_acquire();
-            let tail = ring_buffer.tail.as_ref().unwrap().load_acquire();
+            let head = ring_buffer.head_ref().load_acquire();
+            let tail = ring_buffer.tail_ref().load_acquire();
 
             let buffer_size = ring_buffer.buffer_size();
 
