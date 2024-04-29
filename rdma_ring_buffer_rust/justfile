@@ -60,6 +60,7 @@ git-commit message="update":
 
 quick-server message="update": (git-commit message) && server
 
+
 kill:
 	rm sync || true
 	killall {{adapter_executable}} || true

@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 bytemuck = "1.15.0"
+coz = "0.1.3"
 criterion = "0.5.1"
 crossbeam = "0.8.4"
 derivative = "2.2.0"
