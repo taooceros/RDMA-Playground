@@ -1,6 +1,6 @@
 use std::{
     hint::spin_loop,
-    mem::{transmute, MaybeUninit},
+    mem::{size_of, transmute, MaybeUninit},
     num::NonZeroI32,
     ops::DerefMut,
     ptr::read,
@@ -94,7 +94,7 @@ fn host(
 
     println!(
         "Server Throughput: {} MB/s",
-        dataflow as f64 / 1024.0 / 1024.0 / (spec.duration.as_secs() as f64)
+        dataflow as f64 / 1e6 * size_of::<usize>() as f64 / (spec.duration.as_secs() as f64)
     );
 
     println!("Finished RDMA Ring Buffer Test");

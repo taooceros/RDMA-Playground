@@ -1,6 +1,6 @@
 use std::{
     hint::spin_loop,
-    mem::{transmute, MaybeUninit},
+    mem::{size_of, transmute, MaybeUninit},
     net::{IpAddr, Ipv4Addr},
     num::NonZeroI32,
     ops::Deref,
@@ -79,8 +79,8 @@ fn host(ready: &AtomicUsize, stop: &AtomicBool, spec: &spec::Spec, sender: Sende
     stop.store_release(true);
 
     println!(
-        "Client Throughput: {} MB/s",
-        dataflow / 1024 / 1024 / (spec.duration.as_secs() as usize)
+        "Server Throughput: {} MB/s",
+        dataflow as f64 / 1e6 * size_of::<usize>() as f64 / (spec.duration.as_secs() as f64)
     );
 }
 
