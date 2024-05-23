@@ -93,8 +93,8 @@ fn host(
     stop.store_release(true);
 
     println!(
-        "Server Throughput: {} MB/s",
-        dataflow as f64 / 1e6 * size_of::<usize>() as f64 / (spec.duration.as_secs() as f64)
+        "Server Throughput: {} Mbit/s",
+        dataflow as f64 / 1e6 * size_of::<usize>() as f64 * 8f64 / (spec.duration.as_secs() as f64)
     );
 
     println!("Finished RDMA Ring Buffer Test");
