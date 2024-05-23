@@ -4,7 +4,7 @@ use std::{
     num::NonZeroI32,
     ops::DerefMut,
     ptr::read,
-    sync::atomic::AtomicBool,
+    sync::atomic::{AtomicBool, AtomicUsize},
     thread,
     time::Duration,
 };
@@ -23,7 +23,7 @@ use uninit::out_ref::Out;
 
 use crate::spec::{self, Spec};
 
-pub fn connect_to_client(spec: Spec) {
+pub fn connect_to_client(spec: Spec, ready: &AtomicUsize) {
     let config = rdma_controller::config::Config {
         dev_name: "rocep152s0f0".to_owned(),
         gid_index: Some(NonZeroI32::new(1).unwrap()),
@@ -39,7 +39,6 @@ pub fn connect_to_client(spec: Spec) {
 
     let (sender, receiver) = ref_ring_buffer.split();
 
-    let ready = &AtomicBool::new(false);
     let stop = &AtomicBool::new(false);
 
     thread::scope(|s| {
@@ -50,14 +49,16 @@ pub fn connect_to_client(spec: Spec) {
 }
 
 fn host(
-    ready: &AtomicBool,
+    ready: &AtomicUsize,
     stop: &AtomicBool,
     spec: &spec::Spec,
     receiver: shared::ref_ring_buffer::receiver::Receiver<usize>,
 ) {
     let clock = Clock::new();
 
-    while !ready.load_acquire() {
+    ready.fetch_add(1, std::sync::atomic::Ordering::Release);
+
+    while ready.load(std::sync::atomic::Ordering::Acquire) < 4 {
         spin_loop();
     }
 
@@ -71,7 +72,7 @@ fn host(
             break;
         }
 
-        if let Some(reader) = receiver.read_exact(spec.batch_size) {
+        if let Some(mut reader) = receiver.read_exact(spec.batch_size) {
             coz::progress!("Read data from ring buffer");
 
             let reader_len = reader.len();
@@ -84,6 +85,8 @@ fn host(
 
                 expected_data = expected_data.wrapping_add(1);
             }
+
+            reader.commit();
         }
     }
 
@@ -100,7 +103,7 @@ fn host(
 fn adapter(
     config: Config,
     sender: shared::ref_ring_buffer::sender::Sender<usize>,
-    ready: &AtomicBool,
+    ready: &AtomicUsize,
     stop: &AtomicBool,
     spec: spec::Spec,
 ) {
@@ -115,7 +118,12 @@ fn adapter(
             .unwrap()
     };
 
-    ready.store_release(true);
+    ready.fetch_add(1, std::sync::atomic::Ordering::Release);
+
+    while ready.load(std::sync::atomic::Ordering::Acquire) < 4 {
+        spin_loop();
+    }
+
     let mut expected_val = 0usize;
 
     'outer: loop {
@@ -144,6 +152,8 @@ fn adapter(
                         }
                     }
                 }
+
+                buffer.commit();
             }
         }
     }

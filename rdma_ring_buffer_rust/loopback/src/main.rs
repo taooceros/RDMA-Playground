@@ -13,8 +13,10 @@ fn main() {
         batch_size: 2 << 13,
     };
 
+    let ready = &std::sync::atomic::AtomicUsize::new(0);
+
     thread::scope(|s| {
-        s.spawn(move || client::connect_to_server(spec));
-        s.spawn(move || server::connect_to_client(spec));
+        s.spawn(move || client::connect_to_server(spec, ready));
+        s.spawn(move || server::connect_to_client(spec, ready));
     })
 }

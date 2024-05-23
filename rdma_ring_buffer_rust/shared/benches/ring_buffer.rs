@@ -1,4 +1,4 @@
-use shared::atomic_extension::AtomicExtension;
+use shared::{atomic_extension::AtomicExtension, ring_buffer::RingBufferAlloc};
 use std::mem::{size_of, ManuallyDrop};
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
@@ -30,9 +30,9 @@ fn ring_buffer(batch_size: usize, buffer_size: usize) {
 
     use shared::ring_buffer::RingBufferConst;
 
-    let mut ring_buffer = RingBufferConst::<u64, 4096>::new();
+    let mut ring_buffer = RingBufferAlloc::new(buffer_size);
     let mut ref_ring_buffer = ring_buffer.to_ref();
-    
+
     thread::scope(|s| {
         let (sender, receiver) = ref_ring_buffer.split();
 
@@ -40,16 +40,19 @@ fn ring_buffer(batch_size: usize, buffer_size: usize) {
         let iteration = DATA_SIZE / batch_size;
 
         let reader_thread = s.spawn(move || {
-            let mut count = 0;
+            let mut count = 0usize;
             for _ in 0..iteration {
                 loop {
-                    if let Some(reader) = receiver.read_exact(batch_size) {
+                    if let Some(mut reader) = receiver.read_exact(batch_size) {
                         assert_eq!(reader.len(), batch_size);
 
                         for val in reader.iter() {
                             assert_eq!(*val, count);
                             count = count.wrapping_add(1);
                         }
+
+                        reader.commit();
+
                         break;
                     }
                 }
@@ -57,7 +60,7 @@ fn ring_buffer(batch_size: usize, buffer_size: usize) {
         });
 
         let writer_thread = s.spawn(move || {
-            let mut count = 0;
+            let mut count = 0usize;
 
             for _ in 0..iteration {
                 loop {
@@ -68,6 +71,9 @@ fn ring_buffer(batch_size: usize, buffer_size: usize) {
                             val.write(count);
                             count = count.wrapping_add(1);
                         }
+
+                        writer.commit();
+
                         break;
                     }
                 }

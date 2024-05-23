@@ -4,21 +4,24 @@ use std::{
     net::{IpAddr, Ipv4Addr},
     num::NonZeroI32,
     ops::Deref,
-    sync::atomic::AtomicBool,
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     thread,
 };
 
 use quanta::Clock;
 use shared::{
-    atomic_extension::AtomicExtension, rdma_controller::{
+    atomic_extension::AtomicExtension,
+    rdma_controller::{
         config::{self, Config},
         IbResource,
-    }, ref_ring_buffer::sender::Sender, ring_buffer::RingBufferAlloc
+    },
+    ref_ring_buffer::sender::Sender,
+    ring_buffer::RingBufferAlloc,
 };
 
 use crate::spec;
 
-pub fn connect_to_server(spec: spec::Spec) {
+pub fn connect_to_server(spec: spec::Spec, ready: &AtomicUsize) {
     let config = config::Config {
         dev_name: "rocep152s0f0".to_owned(),
         gid_index: Some(NonZeroI32::new(1).unwrap()),
@@ -35,7 +38,6 @@ pub fn connect_to_server(spec: spec::Spec) {
 
     let (sender, receiver) = ref_ring_buffer.split();
 
-    let ready = &AtomicBool::new(false);
     let stop = &AtomicBool::new(false);
 
     thread::scope(|s| {
@@ -45,15 +47,12 @@ pub fn connect_to_server(spec: spec::Spec) {
     })
 }
 
-fn host(
-    ready: &AtomicBool,
-    stop: &AtomicBool,
-    spec: &spec::Spec,
-    sender: Sender<usize>,
-) {
+fn host(ready: &AtomicUsize, stop: &AtomicBool, spec: &spec::Spec, sender: Sender<usize>) {
     let clock = Clock::new();
 
-    while !(ready).load_acquire() {
+    ready.fetch_add(1, Ordering::Release);
+
+    while ready.load_acquire() < 4 {
         spin_loop()
     }
 
@@ -72,6 +71,8 @@ fn host(
                 expected_data = expected_data.wrapping_add(1);
             }
             dataflow += spec.batch_size;
+
+            writer.commit();
         }
     }
 
@@ -86,7 +87,7 @@ fn host(
 fn adapter(
     config: Config,
     receiver: shared::ref_ring_buffer::receiver::Receiver<usize>,
-    ready: &AtomicBool,
+    ready: &AtomicUsize,
     stop: &AtomicBool,
     spec: spec::Spec,
 ) {
@@ -101,11 +102,14 @@ fn adapter(
             .unwrap()
     };
 
-    ready.store_release(true);
+    ready.fetch_add(1, Ordering::Release);
 
-    let mut expected_val = 0usize;
+    while ready.load_acquire() < 4 {
+        spin_loop();
+    }
+
     'outer: loop {
-        if let Some(reader) = receiver.read_exact(spec.message_size) {
+        if let Some(mut reader) = receiver.read_exact(spec.message_size) {
             unsafe {
                 ib_resource
                     .post_send(2, &mut mr, reader.deref(), true)
@@ -131,6 +135,8 @@ fn adapter(
                     }
                 }
             }
+
+            reader.commit();
         }
     }
 }
