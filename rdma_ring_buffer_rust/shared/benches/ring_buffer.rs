@@ -30,11 +30,12 @@ fn ring_buffer(batch_size: usize, buffer_size: usize) {
 
     use shared::ring_buffer::RingBufferConst;
 
+    let mut ring_buffer = RingBufferConst::<u64, 4096>::new();
+    let mut ref_ring_buffer = ring_buffer.to_ref();
+    
     thread::scope(|s| {
-        let mut ring_buffer = RingBufferConst::<u64, 4096>::new();
-        let ref_ring_buffer = Arc::new(ring_buffer.to_ref());
-        let reader = ref_ring_buffer.clone();
-        let writer = ref_ring_buffer.clone();
+        let (sender, receiver) = ref_ring_buffer.split();
+
         const DATA_SIZE: usize = 1 * MB;
         let iteration = DATA_SIZE / batch_size;
 
@@ -42,7 +43,7 @@ fn ring_buffer(batch_size: usize, buffer_size: usize) {
             let mut count = 0;
             for _ in 0..iteration {
                 loop {
-                    if let Some(reader) = reader.read_exact(batch_size) {
+                    if let Some(reader) = receiver.read_exact(batch_size) {
                         assert_eq!(reader.len(), batch_size);
 
                         for val in reader.iter() {
@@ -60,7 +61,7 @@ fn ring_buffer(batch_size: usize, buffer_size: usize) {
 
             for _ in 0..iteration {
                 loop {
-                    if let Some(mut writer) = writer.reserve_write(batch_size) {
+                    if let Some(mut writer) = sender.try_reserve(batch_size) {
                         assert_eq!(writer.len(), batch_size);
 
                         for val in writer.iter_mut() {

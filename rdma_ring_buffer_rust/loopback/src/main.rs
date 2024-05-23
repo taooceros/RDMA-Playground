@@ -7,10 +7,10 @@ mod spec;
 fn main() {
     let spec = spec::Spec {
         port: 12345,
-        message_size: 2 << 16,
-        buffer_size: 2 << 24,
+        message_size: 2 << 13,
+        buffer_size: 2 << 20,
         duration: Duration::from_secs(5),
-        batch_size: 64,
+        batch_size: 2 << 13,
     };
 
     thread::scope(|s| {

@@ -10,12 +10,10 @@ use std::{
 
 use quanta::Clock;
 use shared::{
-    atomic_extension::AtomicExtension,
-    rdma_controller::{
+    atomic_extension::AtomicExtension, rdma_controller::{
         config::{self, Config},
         IbResource,
-    },
-    ring_buffer::RingBufferAlloc,
+    }, ref_ring_buffer::sender::Sender, ring_buffer::RingBufferAlloc
 };
 
 use crate::spec;
@@ -33,10 +31,9 @@ pub fn connect_to_server(spec: spec::Spec) {
 
     let mut ring_buffer = RingBufferAlloc::<usize>::new(spec.buffer_size);
 
-    let ref_ring_buffer = ring_buffer.to_ref();
+    let mut ref_ring_buffer = ring_buffer.to_ref();
 
-    let receiver = ref_ring_buffer.clone();
-    let sender = ref_ring_buffer.clone();
+    let (sender, receiver) = ref_ring_buffer.split();
 
     let ready = &AtomicBool::new(false);
     let stop = &AtomicBool::new(false);
@@ -52,7 +49,7 @@ fn host(
     ready: &AtomicBool,
     stop: &AtomicBool,
     spec: &spec::Spec,
-    sender: shared::ref_ring_buffer::RefRingBuffer<usize>,
+    sender: Sender<usize>,
 ) {
     let clock = Clock::new();
 
@@ -69,7 +66,7 @@ fn host(
             break 'outer;
         }
 
-        if let Some(mut writer) = sender.reserve_write(spec.batch_size) {
+        if let Some(mut writer) = sender.try_reserve(spec.batch_size) {
             for val in writer.iter_mut() {
                 val.write(expected_data);
                 expected_data = expected_data.wrapping_add(1);
@@ -88,7 +85,7 @@ fn host(
 
 fn adapter(
     config: Config,
-    receiver: shared::ref_ring_buffer::RefRingBuffer<usize>,
+    receiver: shared::ref_ring_buffer::receiver::Receiver<usize>,
     ready: &AtomicBool,
     stop: &AtomicBool,
     spec: spec::Spec,
@@ -99,7 +96,7 @@ fn adapter(
     let mut mr = unsafe {
         ib_resource
             .register_memory_region(transmute::<&mut [MaybeUninit<usize>], &mut [usize]>(
-                receiver.buffer_slice(),
+                receiver.ring_buffer().buffer_slice(),
             ))
             .unwrap()
     };

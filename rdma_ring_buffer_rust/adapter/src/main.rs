@@ -86,6 +86,8 @@ pub fn main() {
 
     let mut ring_buffer = ring_buffer.to_ref();
 
+    let (sender, receiver) = ring_buffer.split();
+
     println!("Creating IPC");
 
     let mut ipc = ipc::Ipc::create("sync");
@@ -110,7 +112,7 @@ pub fn main() {
 
     init_metadata.write_to(&mut ipc);
 
-    let ipc_thread = thread::spawn(move || {
+    let _ipc_thread = thread::spawn(move || {
         let mut buf = vec![0];
         ipc.read_to_end(&mut buf).unwrap();
         exit(0);
@@ -118,24 +120,20 @@ pub fn main() {
 
     let mut expected_val: u64 = 0;
 
-    let mut previous_buffer = vec![0; args.message_size];
-
-    let mut previous_head = 0;
-
     match connection_type {
         rdma_controller::config::ConnectionType::Server { message_size, .. } => loop {
             unsafe {
-                if let Some(mut buffer) = ring_buffer.reserve_write(message_size) {
-                    assert_eq!(buffer.len(), message_size);
+                if let Some(mut writer) = sender.try_reserve(message_size) {
+                    assert_eq!(writer.len(), message_size);
 
                     ib_resource
-                        .post_recv(2, &mut mr, Out::<'_, [u64]>::from(buffer.deref_mut()))
+                        .post_recv(2, &mut mr, Out::<'_, [u64]>::from(writer.deref_mut()))
                         .expect("Failed to post recv");
 
                     'outer: loop {
                         for wc in ib_resource.poll_cq() {
                             if wc.status != rdma_sys::ibv_wc_status::IBV_WC_SUCCESS {
-                                eprintln!("Buffer Address: {:?}", buffer.as_ptr() as *const u64);
+                                eprintln!("Buffer Address: {:?}", writer.as_ptr() as *const u64);
                                 panic!(
                                     "wc status {}, last error {}",
                                     wc.status,
@@ -149,46 +147,39 @@ pub fn main() {
                         }
                     }
 
-                    for val in 0..buffer.len() {
-                        if buffer[val].assume_init() != expected_val {
+                    for val in 0..writer.len() {
+                        if writer[val].assume_init() != expected_val {
                             eprintln!(
                                 "Expected: {}, Got: {}",
                                 expected_val,
-                                buffer[val].assume_init()
+                                writer[val].assume_init()
                             );
                             eprintln!(
                                 "Buffer: {:?}",
                                 transmute::<&mut [MaybeUninit<u64>], &mut [u64]>(
-                                    buffer.deref_mut()
+                                    writer.deref_mut()
                                 )
                             );
                             panic!("");
                         }
                         expected_val = expected_val.wrapping_add(1);
                     }
+
+                    writer.commit();
                 }
             }
         },
         rdma_controller::config::ConnectionType::Client { message_size, .. } => loop {
-            let current_head = ring_buffer.head_ref().load_acquire();
-            if let Some(reader) = ring_buffer.read_exact(message_size) {
+            if let Some(mut reader) = receiver.read_exact(message_size) {
                 assert_eq!(reader.len(), message_size);
 
                 for val in reader.iter() {
                     if *val != expected_val {
-                        eprintln!("Expected: {}, Got: {}", expected_val, val);
-                        eprintln!(
-                            "Previous Head: {}, Previous Buffer: {:?}",
-                            previous_head, previous_buffer
-                        );
                         eprintln!("Buffer: {:?}", reader);
                         panic!("");
                     }
                     expected_val = expected_val.wrapping_add(1);
                 }
-
-                previous_head = current_head;
-                previous_buffer.copy_from_slice(reader.deref());
 
                 unsafe {
                     ib_resource
@@ -212,6 +203,8 @@ pub fn main() {
                         }
                     }
                 }
+
+                reader.commit();
             }
         },
     }

@@ -35,18 +35,17 @@ pub fn connect_to_client(spec: Spec) {
 
     let mut ring_buffer = RingBufferAlloc::<usize>::new(spec.buffer_size);
 
-    let ref_ring_buffer = ring_buffer.to_ref();
+    let mut ref_ring_buffer = ring_buffer.to_ref();
 
-    let receiver = ref_ring_buffer.clone();
-    let sender = ref_ring_buffer.clone();
+    let (sender, receiver) = ref_ring_buffer.split();
 
     let ready = &AtomicBool::new(false);
     let stop = &AtomicBool::new(false);
 
     thread::scope(|s| {
-        s.spawn(move || adapter(config, receiver, ready, stop, spec));
+        s.spawn(move || adapter(config, sender, ready, stop, spec));
 
-        s.spawn(move || host(ready, stop, &spec, sender));
+        s.spawn(move || host(ready, stop, &spec, receiver));
     })
 }
 
@@ -54,7 +53,7 @@ fn host(
     ready: &AtomicBool,
     stop: &AtomicBool,
     spec: &spec::Spec,
-    sender: shared::ref_ring_buffer::RefRingBuffer<usize>,
+    receiver: shared::ref_ring_buffer::receiver::Receiver<usize>,
 ) {
     let clock = Clock::new();
 
@@ -72,7 +71,7 @@ fn host(
             break;
         }
 
-        if let Some(reader) = sender.read_exact(spec.batch_size) {
+        if let Some(reader) = receiver.read_exact(spec.batch_size) {
             coz::progress!("Read data from ring buffer");
 
             let reader_len = reader.len();
@@ -100,7 +99,7 @@ fn host(
 
 fn adapter(
     config: Config,
-    receiver: shared::ref_ring_buffer::RefRingBuffer<usize>,
+    sender: shared::ref_ring_buffer::sender::Sender<usize>,
     ready: &AtomicBool,
     stop: &AtomicBool,
     spec: spec::Spec,
@@ -111,7 +110,7 @@ fn adapter(
     let mut mr = unsafe {
         ib_resource
             .register_memory_region(transmute::<&mut [MaybeUninit<usize>], &mut [usize]>(
-                receiver.buffer_slice(),
+                sender.ring_buffer().buffer_slice(),
             ))
             .unwrap()
     };
@@ -121,7 +120,7 @@ fn adapter(
 
     'outer: loop {
         unsafe {
-            if let Some(mut buffer) = receiver.reserve_write(spec.message_size) {
+            if let Some(mut buffer) = sender.try_reserve(spec.message_size) {
                 ib_resource
                     .post_recv(2, &mut mr, Out::<'_, [usize]>::from(buffer.deref_mut()))
                     .expect("Failed to post recv");

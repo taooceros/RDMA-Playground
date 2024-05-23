@@ -73,6 +73,8 @@ fn main() {
         )
     });
 
+    let (sender, receiver) = ring_buffer.split();
+
     println!("Starting RDMA Ring Buffer Test");
     let mut buffer = vec![0; batch_size];
 
@@ -89,19 +91,21 @@ fn main() {
                 break;
             }
 
-            let reader = ring_buffer.read();
+            let mut chunk = receiver.read();
 
-            let reader_len = reader.len();
+            let reader_len = chunk.len();
             dataflow += reader_len;
 
-            for data in reader.iter() {
+            for data in chunk.iter() {
                 if *data != expected_data {
-                    eprintln!("Reader {:?}", reader);
+                    eprintln!("Reader {:?}", chunk);
                     panic!("Data mismatch: expected {}, got {}", expected_data, *data);
                 }
 
                 expected_data = expected_data.wrapping_add(1);
             }
+
+            chunk.commit();
         },
         ConnectionType::Client => 'outer: loop {
             for val in buffer.iter_mut() {
@@ -115,7 +119,7 @@ fn main() {
                     break 'outer;
                 }
 
-                let write_len = ring_buffer.write(&mut buffer);
+                let write_len = sender.write(&mut buffer);
                 if write_len == batch_size {
                     break;
                 }
