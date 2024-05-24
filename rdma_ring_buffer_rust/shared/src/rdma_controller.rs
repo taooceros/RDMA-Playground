@@ -11,7 +11,7 @@ use std::{
     fmt::Display,
     io::{self, Read, Write},
     mem::{align_of, size_of, size_of_val, take, transmute, zeroed, MaybeUninit},
-    net::{IpAddr, SocketAddr, TcpListener},
+    net::{IpAddr, SocketAddr, TcpListener, TcpStream},
     num::NonZeroI32,
     ops::{Range, RangeBounds},
     ptr::{copy_nonoverlapping, null_mut, read, slice_from_raw_parts, slice_from_raw_parts_mut},
@@ -164,8 +164,8 @@ impl IbResource {
                 recv_cq: self.cq,
                 // srq: self.srq,
                 cap: ibv_qp_cap {
-                    max_send_wr: 2000,
-                    max_recv_wr: 2000,
+                    max_send_wr: 8192,
+                    max_recv_wr: 8192,
                     max_send_sge: 3,
                     max_recv_sge: 3,
                     ..zeroed()
@@ -272,7 +272,7 @@ impl IbResource {
 
             let socket_addr = SocketAddr::new(server_addr, port);
 
-            let mut stream = std::net::TcpStream::connect(socket_addr).unwrap();
+            let mut stream = connect_retry(socket_addr);
 
             let buffer = transmute::<&DestQpInfo, &[u8; size_of::<DestQpInfo>()]>(&source_info);
 
@@ -293,6 +293,8 @@ impl IbResource {
 
         Ok(())
     }
+
+   
 
     fn connect_dest(&mut self, config: Config) -> Result<(), Box<dyn Error>> {
         match config.connection_type {
@@ -653,6 +655,16 @@ impl Display for RdmaError {
                 to_state,
             } => write!(f, "Failed to modify QP from {} to {}", from_state, to_state),
             RdmaError::RegMrError => write!(f, "Failed to register memory region"),
+        }
+    }
+}
+
+fn connect_retry(ipport: SocketAddr) -> TcpStream {
+    loop {
+        let stream = TcpStream::connect(ipport);
+        match stream {
+            Ok(stream) => return stream,
+            Err(_) => continue,
         }
     }
 }

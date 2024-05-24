@@ -9,18 +9,18 @@ use crate::atomic_extension::AtomicExtension;
 
 use super::RefRingBuffer;
 
-pub struct RingBufferWriter<'a, T> {
-    ring_buffer: &'a mut RefRingBuffer<T>,
+pub struct WriteChunk<'a, T> {
+    ring_buffer: &'a RefRingBuffer<T>,
     start: usize,
     end: usize,
     _marker: PhantomData<&'a mut T>,
 }
 
-impl<'a, T: Copy + Send> RingBufferWriter<'a, T> {
-    pub(super) fn try_reserve(ring_buffer: &'a mut RefRingBuffer<T>, size: usize) -> Option<Self> {
+impl<'a, T: Copy + Send> WriteChunk<'a, T> {
+    pub(super) fn try_reserve(ring_buffer: &'a RefRingBuffer<T>, size: usize) -> Option<Self> {
         unsafe {
-            let head = ring_buffer.head.as_ref().unwrap().load_acquire();
-            let tail = ring_buffer.tail.as_ref().unwrap().load_acquire();
+            let head = ring_buffer.head_ref().load_acquire();
+            let tail = ring_buffer.tail_ref().load_acquire();
 
             let buffer_size = ring_buffer.buffer_size();
 
@@ -28,11 +28,7 @@ impl<'a, T: Copy + Send> RingBufferWriter<'a, T> {
 
             let to_end = buffer_size - (tail % buffer_size);
 
-            avaliable = if avaliable > to_end {
-                to_end
-            } else {
-                avaliable
-            };
+            avaliable = avaliable.min(to_end);
 
             if avaliable < size {
                 return None;
@@ -48,7 +44,7 @@ impl<'a, T: Copy + Send> RingBufferWriter<'a, T> {
     }
 }
 
-impl<T: Copy + Send> Deref for RingBufferWriter<'_, T> {
+impl<T: Copy + Send> Deref for WriteChunk<'_, T> {
     type Target = [MaybeUninit<T>];
 
     fn deref(&self) -> &Self::Target {
@@ -60,7 +56,7 @@ impl<T: Copy + Send> Deref for RingBufferWriter<'_, T> {
     }
 }
 
-impl<T: Copy + Send> DerefMut for RingBufferWriter<'_, T> {
+impl<T: Copy + Send> DerefMut for WriteChunk<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe {
             let start = self.start % self.ring_buffer.buffer_size();
@@ -70,8 +66,8 @@ impl<T: Copy + Send> DerefMut for RingBufferWriter<'_, T> {
     }
 }
 
-impl<T> Drop for RingBufferWriter<'_, T> {
-    fn drop(&mut self) {
+impl<T> WriteChunk<'_, T> {
+    pub fn commit(&mut self) {
         unsafe {
             (*self.ring_buffer)
                 .tail

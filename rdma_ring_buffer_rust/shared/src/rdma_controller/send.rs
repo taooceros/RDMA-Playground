@@ -22,12 +22,6 @@ impl IbResource {
 
             let u8_ref = data.as_bytes();
 
-            println!(
-                "Posting Send with buffer: {:?} and length: {}",
-                u8_ref,
-                u8_ref.len()
-            );
-
             let mut list = ibv_sge {
                 addr: u8_ref.as_ptr() as u64,
                 length: u8_ref.len().try_into().unwrap(),

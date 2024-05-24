@@ -1,5 +1,8 @@
 [workspace]
-members = ["adapter", "host", "shared"]
+members = ["adapter", "host", "loopback", "shared"]
 resolver = "2"
+default-members = ["loopback"]
 [profile.release]
+debug = true
+[profile.bench]
 debug = true

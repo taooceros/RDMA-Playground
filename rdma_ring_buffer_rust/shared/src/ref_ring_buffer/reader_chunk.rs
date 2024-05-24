@@ -3,13 +3,13 @@ use std::{fmt::Formatter, mem::transmute, ops::Deref};
 
 use super::RefRingBuffer;
 
-pub struct RingBufferReader<'a, T: Copy + Send> {
+pub struct ReadChunk<'a, T: Copy + Send> {
     pub ring_buffer: &'a RefRingBuffer<T>,
     pub start: usize,
     pub end: usize,
 }
 
-impl<T: Copy + Send + Debug> Debug for RingBufferReader<'_, T> {
+impl<T: Copy + Send + Debug> Debug for ReadChunk<'_, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RingBufferReader")
             .field("start", &self.start)
@@ -19,17 +19,15 @@ impl<T: Copy + Send + Debug> Debug for RingBufferReader<'_, T> {
     }
 }
 
-impl<T: Copy + Send> Drop for RingBufferReader<'_, T> {
-    fn drop(&mut self) {
-        unsafe {
-            self.ring_buffer
-                .head_ref()
-                .store(self.end, std::sync::atomic::Ordering::Release);
-        }
+impl<T: Send + Copy> ReadChunk<'_, T> {
+    pub fn commit(&mut self) {
+        self.ring_buffer
+            .head_ref()
+            .store(self.end, std::sync::atomic::Ordering::Release);
     }
 }
 
-impl<T: Send + Copy> Deref for RingBufferReader<'_, T> {
+impl<T: Send + Copy> Deref for ReadChunk<'_, T> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
