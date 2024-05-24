@@ -31,7 +31,7 @@ git_update:
 	git pull
 
 build: git_update
-	cargo build {{ if configuration == "release" {"--release"} else {""} }}
+	cargo build {{ if configuration == "release" {"--release"} else {""} }} --all
 
 server: build kill
 	@just server_adapter > adapter.log &
