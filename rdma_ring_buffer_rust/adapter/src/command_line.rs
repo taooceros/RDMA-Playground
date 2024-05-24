@@ -5,7 +5,7 @@ use clap::{arg, command, Parser};
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct GlobalArgs {
-    #[arg(short, long, default_value = "rocep152s0f0")]
+    #[arg(short, long, default_value = "mlx5_0")]
     pub dev: String,
     #[arg(short, long, default_value = "1")]
     pub gid_index: Option<NonZeroI32>,
