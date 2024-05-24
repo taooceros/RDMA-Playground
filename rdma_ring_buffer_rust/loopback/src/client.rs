@@ -23,7 +23,7 @@ use crate::spec;
 
 pub fn connect_to_server(spec: spec::Spec, ready: &AtomicUsize) {
     let config = config::Config {
-        dev_name: "rocep152s0f0".to_owned(),
+        dev_name: "mlx5_0".to_owned(),
         gid_index: Some(NonZeroI32::new(1).unwrap()),
         connection_type: shared::rdma_controller::config::ConnectionType::Client {
             port: spec.port,

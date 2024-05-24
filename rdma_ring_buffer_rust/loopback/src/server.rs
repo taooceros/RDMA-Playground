@@ -25,7 +25,7 @@ use crate::spec::{self, Spec};
 
 pub fn connect_to_client(spec: Spec, ready: &AtomicUsize) {
     let config = rdma_controller::config::Config {
-        dev_name: "rocep152s0f0".to_owned(),
+        dev_name: "mlx5_0".to_owned(),
         gid_index: Some(NonZeroI32::new(1).unwrap()),
         connection_type: shared::rdma_controller::config::ConnectionType::Server {
             port: spec.port,
