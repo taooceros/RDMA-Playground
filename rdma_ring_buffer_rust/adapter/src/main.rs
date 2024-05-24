@@ -52,7 +52,7 @@ pub fn main() {
 
     println!("IB setup done");
 
-    const RINGBUFFER_LEN: usize = 32768;
+    const RINGBUFFER_LEN: usize = 1 << 20;
 
     let mut shmem = ShmemConf::new()
         .size(size_of::<RingBufferConst<u64, RINGBUFFER_LEN>>())

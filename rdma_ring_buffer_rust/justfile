@@ -5,7 +5,7 @@ server_ip := env_var('SERVER_IP')
 port := env_var('SERVER_PORT')
 duration := env_var('DURATION')
 
-message_size := env_var_or_default('MESSAGE_SIZE', '64')
+message_size := env_var_or_default('MESSAGE_SIZE', '65536')
 
 
 adapter_executable := "rdma_adapter"
