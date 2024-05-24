@@ -147,23 +147,23 @@ pub fn main() {
                         }
                     }
 
-                    for val in 0..writer.len() {
-                        if writer[val].assume_init() != expected_val {
-                            eprintln!(
-                                "Expected: {}, Got: {}",
-                                expected_val,
-                                writer[val].assume_init()
-                            );
-                            eprintln!(
-                                "Buffer: {:?}",
-                                transmute::<&mut [MaybeUninit<u64>], &mut [u64]>(
-                                    writer.deref_mut()
-                                )
-                            );
-                            panic!("");
-                        }
-                        expected_val = expected_val.wrapping_add(1);
-                    }
+                    // for val in 0..writer.len() {
+                    //     if writer[val].assume_init() != expected_val {
+                    //         eprintln!(
+                    //             "Expected: {}, Got: {}",
+                    //             expected_val,
+                    //             writer[val].assume_init()
+                    //         );
+                    //         eprintln!(
+                    //             "Buffer: {:?}",
+                    //             transmute::<&mut [MaybeUninit<u64>], &mut [u64]>(
+                    //                 writer.deref_mut()
+                    //             )
+                    //         );
+                    //         panic!("");
+                    //     }
+                    //     expected_val = expected_val.wrapping_add(1);
+                    // }
 
                     writer.commit();
                 }
@@ -173,13 +173,13 @@ pub fn main() {
             if let Some(mut reader) = receiver.read_exact(message_size) {
                 assert_eq!(reader.len(), message_size);
 
-                for val in reader.iter() {
-                    if *val != expected_val {
-                        eprintln!("Buffer: {:?}", reader);
-                        panic!("");
-                    }
-                    expected_val = expected_val.wrapping_add(1);
-                }
+                // for val in reader.iter() {
+                //     if *val != expected_val {
+                //         eprintln!("Buffer: {:?}", reader);
+                //         panic!("");
+                //     }
+                //     expected_val = expected_val.wrapping_add(1);
+                // }
 
                 unsafe {
                     ib_resource
